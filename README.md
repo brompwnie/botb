@@ -256,6 +256,63 @@ https://heroku.com
 
 ```
 
+# Using BOtB with CI\CD
+BOtB can be used with CI\CD technologies that make use of exit codes to determine if tests have passed or failed. Below is a Shell script that executes two BOtB tests and the exit codes of the two tests are used to set the exit of the Shell script. If any of the two tests return an Exit Code >0, the test executing the shell script will fail.
+
+```
+#!/bin/sh 
+
+exitCode=0
+
+echo "[+] Testing UNIX Sockets"
+./bob_linux_amd64 -autopwn -cicd=true
+exitCode=$?
+
+echo "[+] Testing Env"
+./bob_linux_amd64 -recon=true
+exitCode=$?
+
+(exit $exitCode)
+
+```
+The above script is not the only way to use BOtB with CI\CD technologies but could also be used by itself and not wrapped in a shell script. An example YML config would be:
+
+```
+version: 2
+cicd:
+  runATest: ./bob_linux_amd64 -autopwn -cicd=true
+```
+
+Below is an example config that can be used with Heroku CI:
+
+```
+{
+    "environments": {
+        "test": {
+            "scripts": {
+                "test": "./bob_linux_amd64 -autopwn -cicd=true"
+            }
+        }
+    }
+}
+```
+
+Below is an example config with Heroku CI but using a wrapper shell script:
+
+```
+{
+    "environments": {
+        "test": {
+            "scripts": {
+                "test": "./bin/testSocksAndEnv.sh"
+            }
+        }
+    }
+}
+
+
+```
+
 # Issues, Bugs and Improvements
 For any bugs, please submit an issue. There is a long list of improvements but please submit an Issue if there is something you want to see added to BOtB.
 
@@ -275,6 +332,11 @@ This tool would not be possible without the contribution of others in the commun
 - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-classic-platform.html
 - https://github.com/wagoodman/dive
 
+# Talks and Events
+BOtB is scheduled to be presented at the following:
+
+- BSides London 2019 (https://sched.co/PAwB)
+- Blackhat Las Vegas Arsenal 2019 (https://www.blackhat.com/us-19/arsenal/schedule/index.html#break-out-the-box-botb-container-analysis-exploitation-and-cicd-tool-14988)
 
  # License
  BOtB is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-nc-sa/4.0).
