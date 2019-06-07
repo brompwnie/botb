@@ -335,7 +335,7 @@ This tool would not be possible without the contribution of others in the commun
 # Talks and Events
 BOtB is scheduled to be presented at the following:
 
-- BSides London 2019 (https://sched.co/PAwB)
+- BSides London 2019 (https://sched.co/PAwB) and slides can be found here https://github.com/brompwnie/bsideslondon2019
 - Blackhat Las Vegas Arsenal 2019 (https://www.blackhat.com/us-19/arsenal/schedule/index.html#break-out-the-box-botb-container-analysis-exploitation-and-cicd-tool-14988)
 
  # License
