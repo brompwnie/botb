@@ -331,6 +331,7 @@ This tool would not be possible without the contribution of others in the commun
 - https://www.twistlock.com/labs-blog/disclosing-directory-traversal-vulnerability-kubernetes-copy-cve-2019-1002101/
 - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-classic-platform.html
 - https://github.com/wagoodman/dive
+- https://github.com/cji/talks/blob/master/BruCON2018/Outside%20The%20Box%20-%20BruCON%202018.pdf
 
 # Talks and Events
 BOtB is scheduled to be presented at the following:
