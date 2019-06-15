@@ -1,4 +1,4 @@
-module github.com/micksmix/botb
+module github.com/brompwnie/botb
 
 go 1.12
 
