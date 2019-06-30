@@ -20,6 +20,8 @@ BOtB is a CLI tool which allows you to:
 - Perform a container breakout via CVE-2019-5736
 - Hijack host binaries with a custom payload
 - Perform actions in CI/CD mode and only return exit codes > 0
+- Scrape metadata info from GCP metadata endpoints
+- Push data to an S3 bucket
 
 # Getting BOtB
 
