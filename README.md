@@ -4,7 +4,7 @@ BOtB is a container analysis and exploitation tool designed to be used by pentes
 
 # What does it do?
 BOtB is a CLI tool which allows you to:
-- Exploit common container vulnerabilties
+- Exploit common container vulnerabilities
 - Perform common container post exploitation actions
 - Provide capability when certain tools or binaries are not available in the Container
 - Use BOtB's capabilities with CI/CD technologies to test container deployments
