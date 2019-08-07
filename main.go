@@ -26,7 +26,7 @@ var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, interfacesPtr, toJsonPt
 var validSocks []string
 
 var exitCode int
-var pathPtr, aggressivePtr, hijackPtr, wordlistPtr, endpointList, pushToS3ptr, s3BucketPtr, awsRegionPtr *string
+var pathPtr, aggressivePtr, hijackPtr, wordlistPtr, endpointList, pushToS3ptr, s3BucketPtr, awsRegionPtr, cgroupPtr *string
 
 type IpAddress struct {
 	Address string
@@ -61,8 +61,13 @@ func main() {
 	s3BucketPtr = flag.String("s3bucket", "nil", "Provide a bucket name for S3 Push")
 	awsRegionPtr = flag.String("region", "nil", "Provide a AWS Region e.g eu-west-2")
 	scrapeGcpMeta = flag.Bool("scrapeGCP", false, "Attempt to scrape the GCP metadata service")
+	cgroupPtr = flag.String("pwnCgroup", "nil", "Provide a command payload to try exploit --privilege CGROUP release_agent's")
 
 	flag.Parse()
+
+	if *cgroupPtr != "nil" {
+		abuseCgroupPriv(*cgroupPtr)
+	}
 
 	if *scrapeGcpMeta {
 		resp, err := scrapeGcpMetadata("169.254.169.254", "80")
