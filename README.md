@@ -22,6 +22,7 @@ BOtB is a CLI tool which allows you to:
 - Perform actions in CI/CD mode and only return exit codes > 0
 - Scrape metadata info from GCP metadata endpoints
 - Push data to an S3 bucket
+- Break out of Privileged Containers
 
 # Getting BOtB
 
@@ -70,6 +71,8 @@ Usage of ./botb:
         Attempt to find metadata services
   -path string
         Path to Start Scanning for UNIX Domain Sockets (default "/")
+  -pwnCgroup string
+    	Provide a command payload to try exploit --privilege CGROUP release_agent's (default "nil")
   -recon
         Perform Recon of the Container ENV
   -region string
@@ -307,6 +310,18 @@ X-Frame-Options: SAMEORIGIN
 
 ```
 
+### Break out of a Privileged Container
+```
+#  ./bob_linux_amd64 -pwnCgroup=hostname
+[+] Break Out The Box
+[+] Attempting to exploit CGROUP Privileges
+[*] The result of your command can be found in /output
+[+] Finished
+root@418fa238e34d:/app# cat /output 
+docker-desktop
+
+```
+
 # Using BOtB with CI\CD
 BOtB can be used with CI\CD technologies that make use of exit codes to determine if tests have passed or failed. Below is a Shell script that executes two BOtB tests and the exit codes of the two tests are used to set the exit of the Shell script. If any of the two tests return an Exit Code >0, the test executing the shell script will fail.
 
@@ -383,6 +398,8 @@ This tool would not be possible without the contribution of others in the commun
 - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-classic-platform.html
 - https://github.com/wagoodman/dive
 - https://github.com/cji/talks/blob/master/BruCON2018/Outside%20The%20Box%20-%20BruCON%202018.pdf
+- https://github.com/singe/container-breakouts
+- https://blog.trailofbits.com/2019/07/19/understanding-docker-container-escapes/
 
 # Talks and Events
 BOtB is scheduled to be presented at the following:
