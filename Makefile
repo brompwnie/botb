@@ -30,3 +30,4 @@ build-linux:
 	@go mod tidy
 	@echo ">> building binary"
 	$(GOV111PREFIX) GOOS=linux GOARCH=amd64 go build -o $(OUTPUTDIR)/$(BINARY_NAME)-linux-amd64 ./
+ 

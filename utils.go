@@ -731,15 +731,11 @@ func processInterfaces() error {
 
 func findHttpSockets() {
 	fmt.Println("[+] Looking for HTTP enabled Sockets")
-	// dockerdVal, checkResult := checkForDockerEnvSock()
-	// if checkResult {
-	// 	fmt.Println("[!] Dockerd DOCKER_HOST found:", dockerdVal)
-	// }
 	sockets, _ := getValidSockets(*pathPtr)
 	httpSockets := getHTTPEnabledSockets(sockets)
-	// dockerSocks := getDockerEnabledSockets(httpSockets)
 	for _, aSock := range httpSockets {
 		fmt.Println("[!] Valid HTTP Socket:", aSock)
+		exitCode = 1
 	}
 }
 
@@ -748,12 +744,14 @@ func findDockerD() {
 	dockerdVal, checkResult := checkForDockerEnvSock()
 	if checkResult {
 		fmt.Println("[!] Dockerd DOCKER_HOST found:", dockerdVal)
+		exitCode = 1
 	}
 	sockets, _ := getValidSockets(*pathPtr)
 	httpSockets := getHTTPEnabledSockets(sockets)
 	dockerSocks := getDockerEnabledSockets(httpSockets)
 	for _, aSock := range dockerSocks {
 		fmt.Println("[!] Valid Docker Socket:", aSock)
+		exitCode = 1
 	}
 }
 

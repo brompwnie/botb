@@ -21,7 +21,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, interfacesPtr, toJsonPtr, autopwnPtr, cicdPtr, reconPtr, metaDataPtr, findDockerdPtr, scrapeGcpMeta *bool
+var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, interfacesPtr, toJsonPtr, autopwnPtr, cicdPtr, reconPtr, metaDataPtr, findDockerdPtr, scrapeGcpMeta, alwaysSucceedPtr *bool
 
 var validSocks []string
 
@@ -45,7 +45,7 @@ func main() {
 	pathPtr = flag.String("path", "/", "Path to Start Scanning for UNIX Domain Sockets")
 	verbosePtr = flag.Bool("verbose", false, "Verbose output")
 	huntSockPtr = flag.Bool("socket", false, "Hunt for Available UNIX Domain Sockets")
-	huntHttpPtr = flag.Bool("findHTTP", false, "Hunt for Available UNIX Domain Sockets with HTTP")
+	huntHttpPtr = flag.Bool("find-http", false, "Hunt for Available UNIX Domain Sockets with HTTP")
 	interfacesPtr = flag.Bool("interfaces", false, "Display available network interfaces")
 
 	autopwnPtr = flag.Bool("autopwn", false, "Attempt to autopwn exposed sockets")
@@ -56,12 +56,13 @@ func main() {
 	hijackPtr = flag.String("hijack", "nil", "Attempt to hijack binaries on host")
 	wordlistPtr = flag.String("wordlist", "nil", "Provide a wordlist")
 	endpointList = flag.String("endpointlist", "nil", "Provide a wordlist")
-	findDockerdPtr = flag.Bool("findDockerD", false, "Attempt to find Dockerd")
+	findDockerdPtr = flag.Bool("find-docker", false, "Attempt to find Dockerd")
 	pushToS3ptr = flag.String("s3push", "nil", "Push a file to S3 e.g Full command to push to https://YOURBUCKET.s3.eu-west-2.amazonaws.com/FILENAME would be: -region eu-west-2 -s3bucket YOURBUCKET -s3push FILENAME")
 	s3BucketPtr = flag.String("s3bucket", "nil", "Provide a bucket name for S3 Push")
 	awsRegionPtr = flag.String("region", "nil", "Provide a AWS Region e.g eu-west-2")
-	scrapeGcpMeta = flag.Bool("scrapeGCP", false, "Attempt to scrape the GCP metadata service")
-	cgroupPtr = flag.String("pwnCgroup", "nil", "Provide a command payload to try exploit --privilege CGROUP release_agent's")
+	scrapeGcpMeta = flag.Bool("scrape-gcp", false, "Attempt to scrape the GCP metadata service")
+	cgroupPtr = flag.String("pwn-privileged", "nil", "Provide a command payload to try exploit --privilege CGROUP release_agent's")
+	alwaysSucceedPtr = flag.Bool("always-succeed", false, "Attempt to scrape the GCP metadata service")
 
 	flag.Parse()
 
@@ -129,10 +130,16 @@ func main() {
 		sockets, _ := getValidSockets(*pathPtr)
 		for _, element := range sockets {
 			fmt.Println("[!] Valid Socket: " + element)
+			exitCode = 1
 		}
 	}
 	fmt.Println("[+] Finished")
-	os.Exit(exitCode)
+	if *alwaysSucceedPtr {
+		os.Exit(0)
+	} else {
+		os.Exit(exitCode)
+	}
+
 }
 
 func downloadFile(filepath string, url string) error {
