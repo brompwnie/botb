@@ -164,7 +164,7 @@ func downloadFile(filepath string, url string) error {
 
 func dropToTTY(dockerSockPath string) error {
 	// this code has been copy+pasted directly from https://github.com/kr/pty, it's that awesome
-	cmd := "./docker/docker -H unix://" + dockerSockPath + " run -t -i -v /:/host alpine:latest /bin/sh"
+	cmd := "./docker/docker -H unix://" + dockerSockPath + " run -ti --privileged --net=host --pid=host --ipc=host -v /:/host alpine:latest /bin/sh"
 	fmt.Println(cmd)
 	c := exec.Command("sh", "-c", cmd)
 
