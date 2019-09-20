@@ -24,6 +24,7 @@ BOtB is a CLI tool which allows you to:
 - Push data to an S3 bucket
 - Break out of Privileged Containers
 - Force BOtB to always return a Exit Code of 0 (useful for non-blocking CI/CD)
+- Perform the above from the CLI arguments or from a YAML config file
 
 # Getting BOtB
 
@@ -52,47 +53,55 @@ go build -o botbsBinary
 BOtB can be compiled into a binary for the targeted platform and supports the following usage
 ```
 Usage of ./botb:
- -aggr string
-    	Attempt to exploit RuncPWN (default "nil")
+-aggr string
+        Attempt to exploit RuncPWN (default "nil")
   -always-succeed
-    	Attempt to scrape the GCP metadata service
+        Always set BOtB's Exit code to Zero
   -autopwn
-    	Attempt to autopwn exposed sockets
+        Attempt to autopwn exposed sockets
   -cicd
-    	Attempt to autopwn but don't drop to TTY,return exit code 1 if successful else 0
+        Attempt to autopwn but don't drop to TTY,return exit code 1 if successful else 0
+  -config string
+        Load config from provided yaml file (default "nil")
   -endpointlist string
-    	Provide a wordlist (default "nil")
+        Provide a textfile with endpoints to test (default "nil")
   -find-docker
-    	Attempt to find Dockerd
+        Attempt to find Dockerd
   -find-http
-    	Hunt for Available UNIX Domain Sockets with HTTP
+        Hunt for Available UNIX Domain Sockets with HTTP
+  -find-sockets
+        Hunt for Available UNIX Domain Sockets
   -hijack string
-    	Attempt to hijack binaries on host (default "nil")
-  -interfaces
-    	Display available network interfaces
+        Attempt to hijack binaries on host (default "nil")
   -metadata
-    	Attempt to find metadata services
+        Attempt to find metadata services
   -path string
-    	Path to Start Scanning for UNIX Domain Sockets (default "/")
+        Path to Start Scanning for UNIX Domain Sockets (default "/")
   -pwn-privileged string
-    	Provide a command payload to try exploit --privilege CGROUP release_agent's (default "nil")
+        Provide a command payload to try exploit --privilege CGROUP release_agent's (default "nil")
   -recon
-    	Perform Recon of the Container ENV
+        Perform Recon of the Container ENV
   -region string
-    	Provide a AWS Region e.g eu-west-2 (default "nil")
+        Provide a AWS Region e.g eu-west-2 (default "nil")
   -s3bucket string
-    	Provide a bucket name for S3 Push (default "nil")
+        Provide a bucket name for S3 Push (default "nil")
   -s3push string
-    	Push a file to S3 e.g Full command to push to https://YOURBUCKET.s3.eu-west-2.amazonaws.com/FILENAME would be: -region eu-west-2 -s3bucket YOURBUCKET -s3push FILENAME (default "nil")
+        Push a file to S3 e.g Full command to push to https://YOURBUCKET.s3.eu-west-2.amazonaws.com/FILENAME would be: -region eu-west-2 -s3bucket YOURBUCKET -s3push FILENAME (default "nil")
   -scrape-gcp
-    	Attempt to scrape the GCP metadata service
-  -socket
-    	Hunt for Available UNIX Domain Sockets
+        Attempt to scrape the GCP metadata service
   -verbose
-    	Verbose output
+        Verbose output
   -wordlist string
-    	Provide a wordlist (default "nil")
+        Provide a wordlist (default "nil")
 
+```
+
+BOtb can also be instructed to load settings from a YAML file via the config paramater
+```
+# ./botb -config=cfg.yml
+[+] Break Out The Box
+[+] Loading Config: cfg.yml
+...
 ```
 
 The following usage examples will return a Exit Code > 0 by default when an anomaly is detected, this is depicted by "echo $?" which shows the exit code of the last executed command.
@@ -334,6 +343,32 @@ This is useful for non-blocking CI/CD tests
 [+] Finished
 # echo $?
 0
+
+```
+
+### Using BOtB with a YAML config file
+Example YAML file cfg.yml
+
+```
+payload: id
+verbose: false
+always-succeed: true
+cicd: false
+endpointlist: endpoints.txt
+wordlist: wordlist.txt
+path: /
+mode: find-sockets
+
+```
+Run BOtB with the above YAML
+
+```
+#  ./bob_linux_amd64 -config=cfg.yml
+[+] Break Out The Box
+[+] Loading Config: cfg.yml
+[+] Looking for UNIX Domain Sockets from: /
+[!] Valid Socket: /tmp/thisisnotasocket.mock
+[+] Finished
 
 ```
 
