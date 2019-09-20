@@ -1,33 +1,47 @@
-SHELL := /bin/bash
-DIR := $(shell pwd)
-BINARY_NAME := botb
-OUTPUTDIR := ${DIR}/bin
+# VERSION         :=      $(shell cat ./VERSION)
+IMAGE_NAME      :=      golang:latest
 
-.PHONY: all build-linux clean
+all: install binaries
 
-GOV111PREFIX := 
-GOV111 := $(shell expr `go version | cut -f2 -d.` \>= 11)
-ifeq "$(GOV111)" ""
-    GOV111PREFIX := env GO111MODULE=on 
-else
-	GOVERSION := $(shell expr `go version | cut -f2 -d.` \>= 11)
-	ifeq "$(GOVERSION)" ""
-		$(error must be running Go version 1.11 or newer, due to use of modules)
-	endif
-endif
+install:
+	go build .
+test:
+	go test ./... -v
 
-all: clean build-linux
+image:
+	docker build . -t bob
 
-clean:
-	@echo ">> removing previous builds"
-	@rm -rf $(OUTPUTDIR)
+binaries:
+	gox -output="bin/{{.Dir}}_{{.OS}}_{{.Arch}}" -osarch="darwin/amd64 linux/386 linux/amd64"
 
-$(GOPATH):
-	GOPATH := $(HOME)/go
+# vandocker:
+# 		docker build -f vandockerfile -t vandocker .
 
-build-linux:
-	@echo ">> running check for unused/missing packages in go.mod"
-	@go mod tidy
-	@echo ">> building binary"
-	$(GOV111PREFIX) GOOS=linux GOARCH=amd64 go build -o $(OUTPUTDIR)/$(BINARY_NAME)-linux-amd64 ./
- 
+runvandocker:
+	 docker run --rm -it -v /var/run/docker.sock:/tmp/thisisnotasocket.mock -v `pwd`:/app docker /bin/sh
+
+# run:
+# 	 docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock bob /bin/bash
+
+run:
+	 docker run --rm -it -v `pwd`:/app -v /var/run/docker.sock:/var/meh bob /bin/bash
+
+runpriv:
+	 docker run --rm --cap-add SYS_PTRACE -it -v `pwd`:/app -v /var/run/docker.sock:/var/meh bob /bin/bash
+
+runpid:
+	docker run -ti --rm --pids-limit="10" bob /bin/bash
+
+runclean:
+	 docker run -it bob /bin/bash
+runtest: 
+	docker run -it --rm -v `pwd`/bob:/bob -v /var/run/docker.sock:/var/meh bob /app/main -path=/ -cicd=true && echo $?
+# runtest2: 
+# 	docker run -it --rm --entrypoint "/bin/sh" ubuntu:latest
+# runtest3: 
+# 	docker run -it --rm -v /var/run/docker.sock:/var/meh --entrypoint "/bin/sh" ubuntu:latest
+# .PHONY: install test fmt release
+
+
+docker run --rm -it -v /var/run/docker.sock:/tmp/thisisnotasocket.mock -v `pw
+d`:/app -e DOCKER_HOST='/tmp/thisisnotasocket.mock' golang /bin/sh

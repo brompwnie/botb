@@ -1,0 +1,8 @@
+payload: id
+verbose: false
+always-succeed: true
+cicd: false
+endpointlist: endpoints.txt
+wordlist: wordlist.txt
+path: /
+mode: find-sockets
