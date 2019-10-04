@@ -49,6 +49,14 @@ govendor add github.com/kr/pty
 go build -o botbsBinary
 ```
 
+Building a static binary in Docker:
+```
+docker build -t botb .
+docker run -it --name botb botb
+docker cp botb:/botb .
+docker rm botb
+```
+
 # Usage
 BOtB can be compiled into a binary for the targeted platform and supports the following usage
 ```
