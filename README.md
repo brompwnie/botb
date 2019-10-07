@@ -49,11 +49,16 @@ govendor add github.com/kr/pty
 go build -o botbsBinary
 ```
 
+Building a cross platform static binary:
+```
+gox -output="bin/{{.Dir}}{{.OS}}{{.Arch}}" -osarch="darwin/amd64 linux/386 linux/amd64"
+```
+
 # Usage
 BOtB can be compiled into a binary for the targeted platform and supports the following usage
 ```
 Usage of ./botb:
--aggr string
+  -aggr string
         Attempt to exploit RuncPWN (default "nil")
   -always-succeed
         Always set BOtB's Exit code to Zero
@@ -108,7 +113,7 @@ The following usage examples will return a Exit Code > 0 by default when an anom
 
 ### Find UNIX Domain Sockets
 ```
-#./bob_linux_amd64 -socket=true
+#./bob_linux_amd64 -find-sockets=true
 [+] Break Out The Box
 [+] Hunting Down UNIX Domain Sockets from: /
 [!] Valid Socket: /var/meh
