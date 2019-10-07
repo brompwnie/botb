@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, toJsonPtr, autopwnPtr, cicdPtr, reconPtr, metaDataPtr, findDockerdPtr, scrapeGcpMeta, alwaysSucceedPtr *bool
+var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, toJsonPtr, autopwnPtr, cicdPtr, reconPtr, metaDataPtr, interfacesPtr, findDockerdPtr, scrapeGcpMeta, alwaysSucceedPtr *bool
 
 var validSocks []string
 
@@ -51,6 +51,7 @@ func main() {
 	cicdPtr = flag.Bool("cicd", false, "Attempt to autopwn but don't drop to TTY,return exit code 1 if successful else 0")
 	reconPtr = flag.Bool("recon", false, "Perform Recon of the Container ENV")
 	metaDataPtr = flag.Bool("metadata", false, "Attempt to find metadata services")
+	interfacesPtr = flag.Bool("interfaces", false, "Attempt to find interfaces")
 	aggressivePtr = flag.String("aggr", "nil", "Attempt to exploit RuncPWN")
 	hijackPtr = flag.String("hijack", "nil", "Attempt to hijack binaries on host")
 	wordlistPtr = flag.String("wordlist", "nil", "Provide a wordlist")
@@ -113,6 +114,8 @@ func runCfgArgs(cfg Config) {
 		findDockerD()
 	case "metadata":
 		checkMetadataServices(cfg.EndpointList)
+	case "interfaces":
+		checkInterfaces()
 	case "autopwn":
 		autopwn(cfg.Path, cfg.Cicd)
 	case "recon":
@@ -188,6 +191,10 @@ func runCMDArgs() {
 
 	if *metaDataPtr {
 		checkMetadataServices(*endpointList)
+	}
+
+	if *interfacesPtr {
+		checkInterfaces()
 	}
 
 	if *autopwnPtr {

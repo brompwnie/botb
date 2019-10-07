@@ -420,6 +420,24 @@ func checkMetadataServices(endpointList string) {
 	}
 }
 
+func checkInterfaces() {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, i := range ifaces {
+			addrs, err := i.Addrs()
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println("[*] Got interface:", i.Name)
+			for _, addr := range addrs {
+					fmt.Println("	[*] Got address:", addr)
+			}
+	}
+	exitCode = 1
+}
+
 func runcPwn(hijackCommand string) {
 
 	if hijackCommand == "nil" {
