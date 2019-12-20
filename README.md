@@ -26,20 +26,18 @@ BOtB is a CLI tool which allows you to:
 - Force BOtB to always return a Exit Code of 0 (useful for non-blocking CI/CD)
 - Perform the above from the CLI arguments or from a YAML config file
 
-# Getting BOtB
+# Installation
 
-BOtB is available as a binary in the [Releases Page](https://github.com/brompwnie/botb/releases).
+## Binaries
+For installation instructions from binaries please visit the [Releases Page](https://github.com/brompwnie/botb/releases).
 
-# Building BOtB
-
-BOtB is written in GO and can be built using the standard GO tools. The following can be done to get you started:
-
-Getting the Code:
+## Via Go
 ```
 go get github.com/brompwnie/botb
-or
-git clone git@github.com:brompwnie/botb.git
 ```
+
+
+# Building from source
 
 Building BOtB via Go:
 ```
