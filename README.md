@@ -28,7 +28,7 @@ BOtB is a CLI tool which allows you to:
 
 # Getting BOtB
 
-BOtB is available as a binary in the Releases Section.
+BOtB is available as a binary in the [Releases Page](https://github.com/brompwnie/botb/releases).
 
 # Building BOtB
 
@@ -41,13 +41,15 @@ or
 git clone git@github.com:brompwnie/botb.git
 ```
 
-Building the Code:
+Building BOtB via Go:
 ```
-govendor init
-govendor add github.com/tv42/httpunix
-govendor add github.com/kr/pty
-go build -o botbsBinary
+go build
 ```
+Building BOtB via Make:
+```
+make
+```
+
 
 # Usage
 BOtB can be compiled into a binary for the targeted platform and supports the following usage
@@ -63,8 +65,8 @@ Usage of ./botb:
         Attempt to autopwn but don't drop to TTY,return exit code 1 if successful else 0
   -config string
         Load config from provided yaml file (default "nil")
-  -endpointlist string
-        Provide a textfile with endpoints to test (default "nil")
+  -endpoints string
+        Provide a textfile with endpoints to use for test (default "nil")
   -find-docker
         Attempt to find Dockerd
   -find-http
@@ -96,7 +98,7 @@ Usage of ./botb:
 
 ```
 
-BOtb can also be instructed to load settings from a YAML file via the config paramater
+BOtB can also be instructed to load settings from a YAML file via the config parameter
 ```
 # ./botb -config=cfg.yml
 [+] Break Out The Box
@@ -258,23 +260,6 @@ https://heroku.com
 
 # echo $?
 1
-```
-
-
-### Get Interfaces and IP's
-
-```
-#  ./bob_linux_amd64 -interfaces=true
-[+] Break Out The Box
-[+] Attempting to get local network interfaces
-[*] Got Interface: lo
-        [*] Got address: 127.0.0.1/8
-[*] Got Interface: tunl0
-[*] Got Interface: ip6tnl0
-[*] Got Interface: eth0
-        [*] Got address: 172.17.0.3/16
-[+] Finished
-
 ```
 
 
@@ -458,6 +443,8 @@ BOtB is scheduled to be presented at the following:
 - BSides London 2019 (https://sched.co/PAwB) and slides can be found here https://github.com/brompwnie/bsideslondon2019
 - Blackhat Las Vegas Arsenal 2019 (https://www.blackhat.com/us-19/arsenal/schedule/index.html#break-out-the-box-botb-container-analysis-exploitation-and-cicd-tool-14988)
 - DefCon 27 Cloud Village (https://cloud-village.org/)
+- Blackhat Europe 2019 (https://www.blackhat.com/eu-19/briefings/schedule/index.html#reverse-engineering-and-exploiting-builds-in-the-cloud-17287)
+- DevSecCon London 2019 (https://www.devseccon.com/london-2019/)
 
  # License
  BOtB is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-nc-sa/4.0).
