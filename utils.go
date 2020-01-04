@@ -487,21 +487,24 @@ func scrapeMetadataEndpoints(endpointList string) {
 		}
 
 	} else {
-		resp, err := scrapeGcpMetadata("169.254.169.254", "80")
-		if err != nil {
-			fmt.Println("[ERROR] ", err)
-		} else {
-			fmt.Println("[*] Output-> \n", resp)
-			exitCode = 1
-		}
-
-		resp, err = scrapeGcpMetadata("169.254.169.254", "8080")
-		if err != nil {
-			fmt.Println("[ERROR] ", err)
-		} else {
-			fmt.Println("[*] Output-> \n", resp)
-			exitCode = 1
-		}
+                if *verbosePtr {
+                        fmt.Println("[*] Attemp to query Azure, Amazon and Digital Ocean")
+                }
+                if queryEndpoint("http://169.254.169.254/") {
+                        exitCode = 1
+                }
+                if *verbosePtr {
+                        fmt.Println("[*] Attemp to query Google GCP")
+                }
+                if queryEndpoint("http://metadata.google.internal/") {
+                        exitCode = 1
+                }
+                if *verbosePtr {
+                        fmt.Println("[*] Attemp to query Alibaba Cloud")
+                }
+                if queryEndpoint("http://100.100.100.200/") {
+                        exitCode = 1
+                }
 	}
 
 }
