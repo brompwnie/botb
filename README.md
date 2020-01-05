@@ -21,6 +21,7 @@ BOtB is a CLI tool which allows you to:
 - Hijack host binaries with a custom payload
 - Perform actions in CI/CD mode and only return exit codes > 0
 - Scrape metadata info from GCP metadata endpoints
+- Perform reverse DNS lookup on CIDR range
 - Push data to an S3 bucket
 - Break out of Privileged Containers
 - Force BOtB to always return a Exit Code of 0 (useful for non-blocking CI/CD)
@@ -53,7 +54,7 @@ make
 BOtB can be compiled into a binary for the targeted platform and supports the following usage
 ```
 Usage of ./botb:
--aggr string
+  -aggr string
         Attempt to exploit RuncPWN (default "nil")
   -always-succeed
         Always set BOtB's Exit code to Zero
@@ -83,6 +84,8 @@ Usage of ./botb:
         Perform Recon of the Container ENV
   -region string
         Provide a AWS Region e.g eu-west-2 (default "nil")
+  -rev-dns string
+        Perform reverse DNS lookup on subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24 (default "nil")
   -s3bucket string
         Provide a bucket name for S3 Push (default "nil")
   -s3push string
@@ -93,7 +96,6 @@ Usage of ./botb:
         Verbose output
   -wordlist string
         Provide a wordlist (default "nil")
-
 ```
 
 BOtB can also be instructed to load settings from a YAML file via the config parameter
