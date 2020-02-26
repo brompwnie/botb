@@ -15,7 +15,7 @@ BOtB is a CLI tool which allows you to:
 - Identify UNIX domain sockets which support HTTP
 - Find and identify the Docker Daemon on UNIX domain sockets or on an interface
 - Analyze and identify sensitive strings in ENV and process in the ProcFS i.e /Proc/{pid}/Environ
-- Identify metadata services endpoints i.e http://169.254.169.254
+- Identify metadata services endpoints i.e http://169.254.169.254, http://metadata.google.internal/ and http://100.100.100.200/ 
 - Perform a container breakout via exposed Docker daemons
 - Perform a container breakout via CVE-2019-5736
 - Hijack host binaries with a custom payload
