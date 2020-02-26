@@ -15,7 +15,7 @@ var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, toJsonPtr, autopwnPtr, 
 var validSocks []string
 
 var exitCode int
-var pathPtr, aggressivePtr, hijackPtr, wordlistPtr, endpointList, pushToS3ptr, s3BucketPtr, awsRegionPtr, cgroupPtr, configPtr *string
+var pathPtr, aggressivePtr, hijackPtr, wordlistPtr, endpointList, pushToS3ptr, s3BucketPtr, awsRegionPtr, cgroupPtr, configPtr, revDNSPtr *string
 
 type IpAddress struct {
 	Address string
@@ -63,6 +63,7 @@ func main() {
 	cgroupPtr = flag.String("pwn-privileged", "nil", "Provide a command payload to try exploit --privilege CGROUP release_agent's")
 	alwaysSucceedPtr = flag.Bool("always-succeed", false, "Always set BOtB's Exit code to Zero")
 	configPtr = flag.String("config", "nil", "Load config from provided yaml file")
+   revDNSPtr = flag.String("rev-dns", "nil", "Perform reverse DNS lookup on subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24")
 
 	flag.Parse()
 
@@ -179,6 +180,10 @@ func runCMDArgs() {
 	if *metaDataPtr {
 		checkMetadataServices(*endpointList)
 	}
+
+   if *revDNSPtr != "nil" {
+      reverseDNS(*revDNSPtr)
+   }
 
 	if *autopwnPtr {
 		autopwn(*pathPtr, *cicdPtr)
