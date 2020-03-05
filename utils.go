@@ -507,27 +507,46 @@ func scrapeMetadataEndpoints(endpointList string) {
 }
 
 func checkMetadataServices(endpointList string) {
-	if endpointList != "nil" {
-		endpoints, err := getLinesFromFile(endpointList)
-		if err != nil {
-			log.Fatal(err)
-		}
+   if endpointList != "nil" {
+      endpoints, err := getLinesFromFile(endpointList)
+      if err != nil {
+         log.Fatal(err)
+      }
 
-		for _, endpoint := range endpoints {
-			if queryEndpoint(endpoint) {
-				exitCode = 1
-			}
-		}
+      for _, endpoint := range endpoints {
+         if queryEndpoint(endpoint) {
+            exitCode = 1
+         }
+      }
 
-	} else {
-		if queryEndpoint("http://169.254.169.254:80/") {
-			exitCode = 1
-		}
+   } else {
 
-		if queryEndpoint("http://169.254.169.254:8080/") {
-			exitCode = 1
-		}
-	}
+      if queryEndpoint("http://169.254.169.254:8080/") {
+         exitCode = 1
+      }
+
+      if *verbosePtr {
+         fmt.Println("[*] Attemp to query Azure, Amazon and Digital Ocean")
+      }
+      if queryEndpoint("http://169.254.169.254/") {
+         exitCode = 1
+      }
+
+      if *verbosePtr {
+         fmt.Println("[*] Attemp to query Google GCP")
+      }
+      if queryEndpoint("http://metadata.google.internal/") {
+         exitCode = 1
+      }
+
+      if *verbosePtr {
+         fmt.Println("[*] Attemp to query Alibaba Cloud")
+      }
+      if queryEndpoint("http://100.100.100.200/") {
+         exitCode = 1
+      }
+
+   }
 }
 
 func runcPwn(hijackCommand string) {
