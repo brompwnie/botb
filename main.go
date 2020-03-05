@@ -63,12 +63,12 @@ func main() {
 	cgroupPtr = flag.String("pwn-privileged", "nil", "Provide a command payload to try exploit --privilege CGROUP release_agent's")
 	alwaysSucceedPtr = flag.Bool("always-succeed", false, "Always set BOtB's Exit code to Zero")
 	configPtr = flag.String("config", "nil", "Load config from provided yaml file")
-   revDNSPtr = flag.String("rev-dns", "nil", "Perform reverse DNS lookup on subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24")
+	revDNSPtr = flag.String("rev-dns", "nil", "Perform reverse DNS lookups on a subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24")
 
 	flag.Parse()
 
 	if *configPtr != "nil" {
-		//pre the config with some defaults
+		//prep the config with some defaults
 		cfg := Config{Path: ".", Verbose: false, Cicd: false, Payload: "nil"}
 
 		cfg, err := loadConfig(*configPtr, cfg)
@@ -194,7 +194,7 @@ func runCMDArgs() {
 		}
 	}
 
-   if *revDNSPtr != "nil" {
-      reverseDNS(*revDNSPtr)
-   }
+	if *revDNSPtr != "nil" {
+		reverseDNS(*revDNSPtr)
+	}
 }
