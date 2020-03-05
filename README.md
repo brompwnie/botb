@@ -25,6 +25,7 @@ BOtB is a CLI tool which allows you to:
 - Break out of Privileged Containers
 - Force BOtB to always return a Exit Code of 0 (useful for non-blocking CI/CD)
 - Perform the above from the CLI arguments or from a YAML config file
+- Perform reverse DNS lookup
 
 # Installation
 
@@ -83,6 +84,8 @@ Usage of ./botb:
         Perform Recon of the Container ENV
   -region string
         Provide a AWS Region e.g eu-west-2 (default "nil")
+  -rev-dns string
+        Perform reverse DNS lookup on subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24 (default "nil")
   -s3bucket string
         Provide a bucket name for S3 Push (default "nil")
   -s3push string
