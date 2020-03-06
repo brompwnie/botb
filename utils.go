@@ -1076,10 +1076,10 @@ func reverseDNS(cidr string) {
 	if size > 2 {
 		for i := 0; i < size; i++ {
 			if i > 0 && i < size-1 {
-				ip = net.IPv4(subnet.IP[0]|byte((i&0xff000000)>>24),
-					subnet.IP[1]|byte((i&0x00ff0000)>>16),
-					subnet.IP[2]|byte((i&0x0000ff00)>>8),
-					subnet.IP[3]|byte((i&0x000000ff)>>0))
+				ip = net.IPv4(subnet.IP[0]|byte((i>>24)&0xff),
+					subnet.IP[1]|byte((i>>16)&0xff),
+					subnet.IP[2]|byte((i>>8)&0xff),
+					subnet.IP[3]|byte((i>>0)&0xff))
 				reverse, _ := net.LookupAddr(ip.String())
 				if reverse != nil {
 					fmt.Printf("[!] %s DNS entry: %s\n", ip.String(), strings.Join(reverse[:], ", "))
