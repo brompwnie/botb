@@ -26,6 +26,7 @@ BOtB is a CLI tool which allows you to:
 - Force BOtB to always return a Exit Code of 0 (useful for non-blocking CI/CD)
 - Perform the above from the CLI arguments or from a YAML config file
 - Perform reverse DNS lookup
+- Identify Kubernetes Service Accounts secrets and attempt to use them
 
 # Installation
 
@@ -74,6 +75,8 @@ Usage of ./botb:
         Hunt for Available UNIX Domain Sockets
   -hijack string
         Attempt to hijack binaries on host (default "nil")
+  -k8secrets
+        Identify and Verify K8's Secrets
   -metadata
         Attempt to find metadata services
   -path string
@@ -85,7 +88,7 @@ Usage of ./botb:
   -region string
         Provide a AWS Region e.g eu-west-2 (default "nil")
   -rev-dns string
-        Perform reverse DNS lookup on subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24 (default "nil")
+        Perform reverse DNS lookups on a subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24 (default "nil")
   -s3bucket string
         Provide a bucket name for S3 Push (default "nil")
   -s3push string
@@ -101,7 +104,7 @@ Usage of ./botb:
 
 BOtB can also be instructed to load settings from a YAML file via the config parameter
 ```
-# ./botb -config=cfg.yml
+#./botb-linux-amd64 -config=cfg.yml
 [+] Break Out The Box
 [+] Loading Config: cfg.yml
 ...
@@ -109,31 +112,24 @@ BOtB can also be instructed to load settings from a YAML file via the config par
 
 The following usage examples will return a Exit Code > 0 by default when an anomaly is detected, this is depicted by "echo $?" which shows the exit code of the last executed command.
 
-### Find UNIX Domain Sockets
+### Identify and Verify mounted Kubernetes Service Account Secrets
 ```
-#./bob_linux_amd64 -socket=true
+#./botb-linux-amd64 -k8secrets=true
 [+] Break Out The Box
-[+] Hunting Down UNIX Domain Sockets from: /
-[!] Valid Socket: /var/meh
+[*] Identifying and Verifying K8's Secrets
+[!] Token found at: /var/run/secrets/kubernetes.io/serviceaccount/token
+[!] Token found at: /run/secrets/kubernetes.io/serviceaccount/token
+[*] Trying:  https://kubernetes.default/api/v1
+[!] Valid response with token (xxxxxxxxxx...)on -> https://kubernetes.default/api/v1
+[*] Trying:  https://kubernetes.default/api/v1/namespaces
+[*] Trying:  https://kubernetes.default/api/v1/namespaces/default/secrets
+[*] Trying:  https://kubernetes.default/api/v1/namespaces/default/pods
+[*] Trying:  https://kubernetes.default/api/v1
+[!] Valid response with token (xxxxxxxxxx...)on -> https://kubernetes.default/api/v1
+[*] Trying:  https://kubernetes.default/api/v1/namespaces
+[*] Trying:  https://kubernetes.default/api/v1/namespaces/default/secrets
+[*] Trying:  https://kubernetes.default/api/v1/namespaces/default/pods
 [+] Finished
-
-#echo $?
-1
-```
-
-
-### Find a Docker Daemon
-```
-#./bob_linux_amd64 -find-docker=true
-[+] Break Out The Box
-[+] Looking for Dockerd
-[!] Dockerd DOCKER_HOST found: tcp://0.0.0.0:2375
-[+] Hunting Docker Socks
-[!] Valid Docker Socket: /var/meh
-[+] Finished
-
-#echo $?
-1
 ```
 
 ### Break out from Container via Exposed Docker Daemon
@@ -196,6 +192,35 @@ Please note that this can be used to test if external entities are executing com
 [+] Currently hijacking:  /usr/bin
 [+] Finished
 ```
+
+### Find UNIX Domain Sockets
+```
+#./bob_linux_amd64 -socket=true
+[+] Break Out The Box
+[+] Hunting Down UNIX Domain Sockets from: /
+[!] Valid Socket: /var/meh
+[+] Finished
+
+#echo $?
+1
+```
+
+
+### Find a Docker Daemon
+```
+#./bob_linux_amd64 -find-docker=true
+[+] Break Out The Box
+[+] Looking for Dockerd
+[!] Dockerd DOCKER_HOST found: tcp://0.0.0.0:2375
+[+] Hunting Docker Socks
+[!] Valid Docker Socket: /var/meh
+[+] Finished
+
+#echo $?
+1
+```
+
+
 
 ### Analyze ENV and ProcFS Environ for Sensitive Strings
 By default BOtB will search for the two terms "secret" and "password".
