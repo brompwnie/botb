@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, toJsonPtr, autopwnPtr, cicdPtr, reconPtr, metaDataPtr, findDockerdPtr, scrapeGcpMeta, alwaysSucceedPtr *bool
+var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, toJsonPtr, autopwnPtr, cicdPtr, reconPtr, metaDataPtr, findDockerdPtr, scrapeGcpMeta, alwaysSucceedPtr, k8secrets *bool
 
 var validSocks []string
 
@@ -64,6 +64,7 @@ func main() {
 	alwaysSucceedPtr = flag.Bool("always-succeed", false, "Always set BOtB's Exit code to Zero")
 	configPtr = flag.String("config", "nil", "Load config from provided yaml file")
 	revDNSPtr = flag.String("rev-dns", "nil", "Perform reverse DNS lookups on a subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24")
+	k8secrets = flag.Bool("k8secrets", false, "Identify and Verify K8's Secrets")
 
 	flag.Parse()
 
@@ -134,6 +135,10 @@ func runCfgArgs(cfg Config) {
 }
 
 func runCMDArgs() {
+
+	if *k8secrets {
+		idenitfyVerifyK8Secrets()
+	}
 
 	if *cgroupPtr != "nil" {
 		abuseCgroupPriv(*cgroupPtr)
