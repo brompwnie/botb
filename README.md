@@ -13,7 +13,7 @@ BOtB is a CLI tool which allows you to:
 ## Current Capabilities
 - Perform a container breakout via exposed Docker daemons (docker.sock)
 - Perform a container breakout via CVE-2019-5736
-- Perform a privileged container via enabled CAPS and SYSCALLS
+- Perform a privileged container breakout via enabled CAPS and SYSCALLS
 - Identify Kubernetes Service Accounts secrets and attempt to use them
 - Identify metadata services endpoints i.e http://169.254.169.254, http://metadata.google.internal/ and http://100.100.100.200/
 - Scrape metadata info from GCP metadata endpoints
