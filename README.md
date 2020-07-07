@@ -11,22 +11,23 @@ BOtB is a CLI tool which allows you to:
 - Perform the above in either a manual or automated approach
 
 ## Current Capabilities
+- Perform a container breakout via exposed Docker daemons (docker.sock)
+- Perform a container breakout via CVE-2019-5736
+- Perform a privileged container via enabled CAPS and SYSCALLS
+- Identify Kubernetes Service Accounts secrets and attempt to use them
+- Identify metadata services endpoints i.e http://169.254.169.254, http://metadata.google.internal/ and http://100.100.100.200/
+- Scrape metadata info from GCP metadata endpoints
+- Analyze and identify sensitive strings in ENV and process in the ProcFS i.e /Proc/{pid}/Environ
 - Find and Identify UNIX Domain Sockets
 - Identify UNIX domain sockets which support HTTP
 - Find and identify the Docker Daemon on UNIX domain sockets or on an interface
-- Analyze and identify sensitive strings in ENV and process in the ProcFS i.e /Proc/{pid}/Environ
-- Identify metadata services endpoints i.e http://169.254.169.254, http://metadata.google.internal/ and http://100.100.100.200/
-- Perform a container breakout via exposed Docker daemons
-- Perform a container breakout via CVE-2019-5736
 - Hijack host binaries with a custom payload
 - Perform actions in CI/CD mode and only return exit codes > 0
-- Scrape metadata info from GCP metadata endpoints
 - Push data to an S3 bucket
-- Break out of Privileged Containers
 - Force BOtB to always return a Exit Code of 0 (useful for non-blocking CI/CD)
 - Perform the above from the CLI arguments or from a YAML config file
 - Perform reverse DNS lookup
-- Identify Kubernetes Service Accounts secrets and attempt to use them
+
 
 # Installation
 
