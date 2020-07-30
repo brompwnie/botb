@@ -10,11 +10,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, toJsonPtr, autopwnPtr, cicdPtr, reconPtr, metaDataPtr, findDockerdPtr, scrapeGcpMeta, alwaysSucceedPtr, k8secrets *bool
+var verbosePtr, huntSockPtr, huntHttpPtr, huntDockerPtr, toJsonPtr, autopwnPtr, cicdPtr, reconPtr, metaDataPtr, findDockerdPtr, scrapeGcpMeta, alwaysSucceedPtr, k8secrets, pwnKeyctl *bool
 
 var validSocks []string
 
 var exitCode int
+var keyMin, keyMax *int
 var pathPtr, aggressivePtr, hijackPtr, wordlistPtr, endpointList, pushToS3ptr, s3BucketPtr, awsRegionPtr, cgroupPtr, configPtr, revDNSPtr *string
 
 type IpAddress struct {
@@ -35,6 +36,8 @@ type Config struct {
 	WordList      string
 	Path          string
 	Mode          string
+	Min           int
+	Max           int
 }
 
 func main() {
@@ -65,6 +68,10 @@ func main() {
 	configPtr = flag.String("config", "nil", "Load config from provided yaml file")
 	revDNSPtr = flag.String("rev-dns", "nil", "Perform reverse DNS lookups on a subnet. Parameter must be in CIDR notation, e.g., -rev-dns 192.168.0.0/24")
 	k8secrets = flag.Bool("k8secrets", false, "Identify and Verify K8's Secrets")
+
+	pwnKeyctl = flag.Bool("pwnKeyctl", false, "Abuse keyctl syscalls and extract data from Linux Kernel keyrings")
+	keyMin = flag.Int("keyMin", 1, " Minimum key id range (default 1)")
+	keyMax = flag.Int("keyMax", 100000000, " Maximum key id range (default 100000000) and max system value is 999999999")
 
 	flag.Parse()
 
@@ -129,12 +136,18 @@ func runCfgArgs(cfg Config) {
 		runcPwn(cfg.Payload)
 	case "pwn-privileged":
 		abuseCgroupPriv(cfg.Payload)
+	case "pwn-keyctl":
+		pwnKeyCtl(cfg.Max, cfg.Min)
 	default:
 		fmt.Println("[!] Invalid mode provided")
 	}
 }
 
 func runCMDArgs() {
+
+	if *pwnKeyctl {
+		pwnKeyCtl(*keyMin, *keyMax)
+	}
 
 	if *k8secrets {
 		idenitfyVerifyK8Secrets()
