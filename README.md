@@ -244,7 +244,7 @@ Please note that this can be used to test if external entities are executing com
 
 ### Find UNIX Domain Sockets
 ```
-#./bob_linux_amd64 -socket=true
+#./botb-linux-amd64 -find-sockets=true
 [+] Break Out The Box
 [+] Hunting Down UNIX Domain Sockets from: /
 [!] Valid Socket: /var/meh
