@@ -472,6 +472,23 @@ func downloadFile(filepath string, url string) error {
 func dropToTTY(dockerSockPath string) error {
 	// this code has been copy+pasted directly from https://github.com/kr/pty, it's that awesome
 	cmd := "./docker/docker -H unix://" + dockerSockPath + " run -ti --privileged --net=host --pid=host --ipc=host -v /:/host alpine:latest /bin/sh"
+	//additional check for userns-remap enabled or not, if yes, drop the --net, --pid and --ipc options as the host's namespace not accesible
+	file, err := os.Open("/proc/self/uid_map")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if strings.Fields(scanner.Text())[1] != 0 {
+			cmd = "./docker/docker -H unix://" + dockerSockPath + " run -ti --privileged -v /:/host alpine:latest /bin/sh"
+		}
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
 	fmt.Println(cmd)
 	c := exec.Command("sh", "-c", cmd)
 
