@@ -482,7 +482,7 @@ func dropToTTY(dockerSockPath string) error {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		if strings.Fields(scanner.Text())[1] != 0 {
+		if strings.Fields(scanner.Text())[1] != "0" {
 			cmd = "./docker/docker -H unix://" + dockerSockPath + " run -ti --privileged -v /:/host alpine:latest /bin/sh"
 		}
 	}
