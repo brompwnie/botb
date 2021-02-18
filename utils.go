@@ -26,7 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/kr/pty"
+	"github.com/creack/pty"
 	"github.com/tv42/httpunix"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -483,7 +483,7 @@ func dropToTTY(dockerSockPath string) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		if strings.Fields(scanner.Text())[1] != "0" {
-			cmd = "./docker/docker -H unix://" + dockerSockPath + " run -ti --privileged -v /:/host alpine:latest /bin/sh"
+			cmd = "./docker/docker -H unix://" + dockerSockPath + " run -ti -v /:/host alpine:latest /bin/sh"
 		}
 	}
 	if err := scanner.Err(); err != nil {
