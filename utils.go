@@ -485,6 +485,7 @@ func dropToTTY(dockerSockPath string) error {
 		if strings.Fields(scanner.Text())[1] != 0 {
 			cmd = "./docker/docker -H unix://" + dockerSockPath + " run -ti --privileged -v /:/host alpine:latest /bin/sh"
 		}
+	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
