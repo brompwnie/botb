@@ -1,3 +1,5 @@
+[![Github All Releases](https://img.shields.io/github/downloads/brompwnie/botb/total.svg?style=for-the-badge)](https://github.com/brompwnie/botb/releases)
+
 # Break out the Box (BOtB)
 BOtB is a container analysis and exploitation tool designed to be used by pentesters and engineers while also being CI/CD friendly with common CI/CD technologies.
 
