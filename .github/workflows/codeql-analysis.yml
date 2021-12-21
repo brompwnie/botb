@@ -1,13 +1,20 @@
 name: CodeQL
-'on':
+on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
   schedule:
     - cron: 0 0 * * 6
+  workflow_dispatch:
+    inputs:
+      operator:
+        description: "The user initiating the task."
+        required: true
+        default: "brompwnie"
+
 jobs:
   analyze:
     name: Analyze
