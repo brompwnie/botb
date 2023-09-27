@@ -332,7 +332,7 @@ https://heroku.com
 [+] Break Out The Box
 [*] Loading entries from: endpoints.txt
 [*] Attempting to query metadata endpoint: 'https://heroku.com'
-[!] Reponse from 'https://heroku.com' -> 200
+[!] Response from 'https://heroku.com' -> 200
 [+] Finished
 
 # echo $?

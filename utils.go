@@ -288,7 +288,7 @@ func queryEndpoint(url string) bool {
 		}
 	}
 	if respCode > 0 {
-		fmt.Printf("[!] Reponse from '%s' -> %d\n", url, respCode)
+		fmt.Printf("[!] Response from '%s' -> %d\n", url, respCode)
 		return true
 	}
 	return false
