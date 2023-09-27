@@ -19,7 +19,7 @@ The following released versions are supported by security updates:
 
 Complete transparency is the goal and your contribution is welcomed.
 
-Please report a security vulnerabiltiy by submitting a Pull Request and providing the following:
+Please report a security vulnerability by submitting a Pull Request and providing the following:
 - CVS3 Score with Vector
 - A minimal PoC that can show how to exploit the vulnerability and show impact
 
